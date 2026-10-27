@@ -1,0 +1,67 @@
+# =============================================================================
+# 车载哨兵 iOS 手机端 — GitHub Actions 云端构建
+#
+# 没有 Mac 也能编译：GitHub 托管的 macOS runner 跑完整个流程，
+# 产出未签名 ipa，在 Actions 页面下载 artifact 即可。
+#
+# 使用方法：
+#   1. 把本仓库推到 GitHub
+#   2. Actions → “Build iOS (unsigned ipa)” → Run workflow
+#   3. 构建完成后在 Run 页面底部下载 SentinelPhone-unsigned-ipa
+#   4. 把 ipa 传到「全能签」重签，再安装到手机
+#
+# 本工程用到 iOS 26 的 glassEffect / Glass API，必须用 Xcode 26 编译；
+# 所以下面会自动挑镜像里最新的 Xcode。
+# =============================================================================
+name: Build iOS (unsigned ipa)
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'ios-v*'
+
+defaults:
+  run:
+    working-directory: ios
+
+jobs:
+  build:
+    name: Build unsigned ipa
+    runs-on: macos-15
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select newest Xcode
+        run: |
+          set -euo pipefail
+          XCODE="$(ls -d /Applications/Xcode_*.app 2>/dev/null | sort -V | tail -1 || true)"
+          if [ -z "$XCODE" ]; then
+            echo "::error::没有找到任何 Xcode"
+            exit 1
+          fi
+          echo "selected Xcode: $XCODE"
+          sudo xcode-select -s "$XCODE"
+          xcodebuild -version
+          xcodebuild -showsdks | grep -i "iphoneos" || true
+
+      - name: Install XcodeGen (pinned 2.38.0)
+        run: |
+          bash scripts/install-xcodegen.sh
+          echo "/usr/local/bin" >> "$GITHUB_PATH"
+
+      - name: Build unsigned ipa
+        run: bash scripts/build-unsigned-ipa.sh
+
+      - name: Upload ipa artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SentinelPhone-unsigned-ipa
+          path: |
+            ios/build/SentinelPhone-unsigned.ipa
+            ios/build/Info.json
+          if-no-files-found: error
+          retention-days: 30

@@ -1,0 +1,40 @@
+name: SentinelPhone
+options:
+  bundleIdPrefix: com.aurora
+  deploymentTarget:
+    iOS: "16.4"
+  createIntermediateGroups: true
+  groupSortPosition: top
+  generateEmptyDirectories: true
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    SWIFT_STRICT_CONCURRENCY: minimal
+    IPHONEOS_DEPLOYMENT_TARGET: "16.4"
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: ""
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    SUPPORTS_MACCATALYST: NO
+    TARGETED_DEVICE_FAMILY: "1"
+targets:
+  SentinelPhone:
+    type: application
+    platform: iOS
+    deploymentTarget: "16.4"
+    sources:
+      - path: SentinelPhone
+        excludes:
+          - "Resources/Info.plist"
+    info:
+      path: SentinelPhone/Resources/Info.plist
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.aurora.sentinelphone
+        PRODUCT_NAME: SentinelPhone
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: "1"
+        GENERATE_INFOPLIST_FILE: NO
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
+        SWIFT_EMIT_LOC_STRINGS: YES
