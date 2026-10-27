@@ -46,6 +46,8 @@ targets:
         UIStatusBarStyle: UIStatusBarStyleDarkContent
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
         UISupportedInterfaceOrientations~ipad:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationLandscapeLeft

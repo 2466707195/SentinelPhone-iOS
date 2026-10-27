@@ -285,6 +285,7 @@ struct ChannelPreviewView: View {
     var body: some View {
         ZStack {
             Color(hex: 0x08060F)
+                .ignoresSafeArea()
 
             if let image = store.frames[channel.id] {
                 GeometryReader { proxy in
@@ -294,8 +295,11 @@ struct ChannelPreviewView: View {
                         .frame(width: proxy.size.width, height: proxy.size.height)
                         .clipped()
                 }
+                .ignoresSafeArea()
             } else if store.isDemo {
                 DemoFrameView(channelID: channel.id)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .ignoresSafeArea()
             } else {
                 VStack(spacing: 8) {
                     Image(systemName: channel.isOnline ? "hourglass" : "wifi.slash")
@@ -317,8 +321,9 @@ struct ChannelPreviewView: View {
                 startPoint: .top,
                 endPoint: .bottom
             )
+            .ignoresSafeArea()
 
-            VStack {
+            VStack(spacing: 0) {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(channel.displayName)
@@ -341,6 +346,7 @@ struct ChannelPreviewView: View {
                     }
                     .buttonStyle(PressScaleStyle())
                 }
+                .padding(.top, 8)
 
                 Spacer(minLength: 0)
 
@@ -363,6 +369,11 @@ struct ChannelPreviewView: View {
             }
             .padding(16)
         }
-        .ignoresSafeArea()
+        .onAppear {
+            OrientationLock.shared.isLandscapeAllowed = true
+        }
+        .onDisappear {
+            OrientationLock.shared.isLandscapeAllowed = false
+        }
     }
 }

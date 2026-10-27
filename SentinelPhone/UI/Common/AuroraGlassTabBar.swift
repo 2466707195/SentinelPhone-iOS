@@ -106,6 +106,9 @@ struct AuroraGlassTabBar: View {
                         .offset(x: capsuleX)
                         .glassEffect(.regular.interactive(), in: Capsule())
                         .shadow(color: Color.black.opacity(0.10), radius: 4, x: 0, y: 2)
+                        .simultaneousGesture(
+                            dragGesture(width: width, itemWidth: itemWidth, capsuleWidth: capsuleWidth)
+                        )
                 }
             }
         } else {
@@ -123,6 +126,9 @@ struct AuroraGlassTabBar: View {
                     .frame(width: capsuleWidth, height: 54)
                     .offset(x: capsuleX)
                     .shadow(color: Color.black.opacity(0.10), radius: 4, x: 0, y: 2)
+                    .simultaneousGesture(
+                        dragGesture(width: width, itemWidth: itemWidth, capsuleWidth: capsuleWidth)
+                    )
             }
             .auroraGlassSurface(
                 AuroraShape.bar,
