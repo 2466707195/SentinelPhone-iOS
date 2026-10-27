@@ -1,14 +1,17 @@
 ﻿import Foundation
 import SwiftUI
 
-// === Aurora UI 閫氱敤缁勪欢锛坕OS / SwiftUI锛?==
-// 瀵瑰簲 Android 鐗?`ui/common/Common.kt`銆?
-// MARK: - 鏋佸厜鑳屾櫙
+// === Aurora UI 通用组件（iOS / SwiftUI）===
+// 对应 Android 版 `ui/common/Common.kt`。
 
-/// 鏋佸厜鑳屾櫙锛氳繎鐧藉簳 + 涓夊洟寰堟贰鐨勫緞鍚戣壊鏅曪紝缁欏疄鐧藉崱鐗囨彁渚涘眰娆★紝浣嗕笉鎶㈠唴瀹广€?///
-/// 瑙勫垯锛?*鑳屾櫙鍙互娣★紝鍐呭蹇呴』瀹?*銆傝壊鏅曞彧瀛樺湪浜庡崱鐗囦箣闂寸殑缂濋殭閲屻€?struct AuroraBackdrop: View {
+// MARK: - 极光背景
 
-    /// 娣辫壊搴曚笂鑹叉檿闇€瑕佹洿浜墠鐪嬪緱鍑烘潵
+/// 极光背景：近白底 + 三团很淡的径向色晕，给实白卡片提供层次，但不抢内容。
+///
+/// 规则：**背景可以淡，内容必须实**。色晕只存在于卡片之间的缝隙里。
+struct AuroraBackdrop: View {
+
+    /// 深色底上色晕需要更亮才看得出来
     private var boost: Double { Aurora.isDark ? 1.8 : 1.0 }
 
     var body: some View {
@@ -64,9 +67,10 @@ import SwiftUI
     }
 }
 
-// MARK: - 椤舵爮
+// MARK: - 顶栏
 
-/// 鑷粯椤舵爮锛屾浛浠ｇ郴缁?NavigationBar銆?struct AppTopBar<Actions: View>: View {
+/// 自绘顶栏，替代系统 NavigationBar。
+struct AppTopBar<Actions: View>: View {
 
     let title: String
     var subtitle: String? = nil
@@ -113,16 +117,19 @@ import SwiftUI
     }
 }
 
-
 extension AppTopBar where Actions == EmptyView {
     init(title: String, subtitle: String? = nil, onBack: (() -> Void)? = nil) {
         self.init(title: title, subtitle: subtitle, onBack: onBack) { EmptyView() }
     }
 }
 
-// MARK: - 搴曢儴鎿嶄綔鏉?
-/// 搴曢儴鎮诞鎿嶄綔鏉★細瀹炵櫧搴?+ 缁嗘弿杈?+ 鏌斿寲鎶曞奖銆?///
-/// 铏界劧鍙?"Glass"锛屼絾瀹炵幇鏄?*瀹炵櫧**锛氫笉瑕佹敼鎴愬崐閫忔槑锛?/// 鍗婇€忔槑搴曚細鎶婇槾褰遍€忎笂鏉ワ紝鐪嬭捣鏉ュ儚澶氬灚浜嗕竴灞傜伆鏂瑰潡銆?struct GlassBar<Content: View>: View {
+// MARK: - 底部操作条
+
+/// 底部悬浮操作条：实白底 + 细描边 + 柔化投影。
+///
+/// 虽然叫 "Glass"，但实现是**实白**：不要改成半透明，
+/// 半透明底会把阴影透上来，看起来像多垫了一层灰方块。
+struct GlassBar<Content: View>: View {
 
     var contentPadding: EdgeInsets = EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12)
     @ViewBuilder var content: () -> Content
@@ -138,15 +145,16 @@ extension AppTopBar where Actions == EmptyView {
             .overlay(
                 AuroraShape.bar.stroke(Aurora.line.opacity(0.55), lineWidth: 1)
             )
-            // 娴眰蹇呴』鏁村潡鍚炵偣鍑伙細绌虹櫧澶勭偣鍑讳笉鑳界┛閫忓埌搴曚笅鐨勫垪琛ㄩ」
+            // 浮层必须整块吞点击：空白处点击不能穿透到底下的列表项
             .contentShape(AuroraShape.bar)
             .onTapGesture { }
     }
 }
 
-// MARK: - 鍐呭鍗＄墖
+// MARK: - 内容卡片
 
-/// 鍐呭鍗＄墖鐨勫敮涓€鍏ュ彛銆傚疄鐧姐€?0pt 鍦嗚銆?pt 鎻忚竟銆?pt 闃村奖銆?6pt 鍐呰竟璺濄€?struct SectionCard<Content: View>: View {
+/// 内容卡片的唯一入口。实白、20pt 圆角、1pt 描边、1pt 阴影、16pt 内边距。
+struct SectionCard<Content: View>: View {
 
     @ViewBuilder var content: () -> Content
 
@@ -165,10 +173,12 @@ extension AppTopBar where Actions == EmptyView {
     }
 }
 
-// MARK: - 鍗＄墖鏍囬
+// MARK: - 卡片标题
 
-/// 鍗＄墖鍐呯粺涓€鏍峰紡鐨勫皬鏍囬锛氬彲閫夊浘鏍囥€佽鏄庡拰鍙充晶璁℃暟銆?///
-/// 椤甸潰閲屼笉瑕佸啀鐢ㄨ８鐨?`HStack + Text` 鎷兼爣棰橈紝淇濊瘉瀛楀彿銆侀鑹插拰闂磋窛涓€鑷淬€?struct AuroraSectionHeader: View {
+/// 卡片内统一样式的小标题：可选图标、说明和右侧计数。
+///
+/// 页面里不要再用裸的 `HStack + Text` 拼标题，保证字号、颜色和间距一致。
+struct AuroraSectionHeader: View {
 
     let title: String
     var subtitle: String? = nil
@@ -214,9 +224,12 @@ extension AppTopBar where Actions == EmptyView {
     }
 }
 
-// MARK: - 鎻愮ず鏉?
-/// 缁熶竴鐨勬彁绀烘潯锛氬疄鑹叉贰搴?+ 璇箟鑹叉枃瀛椼€?///
-/// 涓嶅啀鍦ㄩ〉闈㈤噷鍐?`background.opacity(...)`锛屼綆鏄庡害搴曚細閫忓嚭鍗＄墖闃村奖銆?struct AuroraBanner: View {
+// MARK: - 提示条
+
+/// 统一的提示条：实色淡底 + 语义色文字。
+///
+/// 不再在页面里写 `background.opacity(...)`，低明度底会透出卡片阴影。
+struct AuroraBanner: View {
 
     let systemIcon: String
     let text: String
@@ -243,9 +256,10 @@ extension AppTopBar where Actions == EmptyView {
     }
 }
 
-// MARK: - 椤舵爮鍥炬爣鎸夐挳
+// MARK: - 顶栏图标按钮
 
-/// 椤舵爮鏍囧噯鍥炬爣鎸夐挳锛氬渾褰㈢幓鐠冨簳锛屽彲鍏抽棴鏃惰嚜鍔ㄩ檷閫忔槑搴︺€?struct AuroraIconButton: View {
+/// 顶栏标准图标按钮：圆形玻璃底，可关闭时自动降透明度。
+struct AuroraIconButton: View {
 
     let systemIcon: String
     var tone: Color = Aurora.brand
@@ -274,8 +288,10 @@ extension AppTopBar where Actions == EmptyView {
     }
 }
 
-// MARK: - 鐘舵€佽兌鍥?
-/// 鐘舵€佽兌鍥婏細灏忓渾鐐?+ 鏂囧瓧锛屽彲鐐瑰嚮鏌ョ湅璇︽儏銆?struct StatusPill: View {
+// MARK: - 状态胶囊
+
+/// 状态胶囊：小圆点 + 文字，可点击查看详情。
+struct StatusPill: View {
 
     let text: String
     let color: Color
@@ -299,9 +315,10 @@ extension AppTopBar where Actions == EmptyView {
     }
 }
 
-// MARK: - 棣栧瓧鏂瑰潡
+// MARK: - 首字方块
 
-/// 棣栧瓧鍦嗚鏂瑰潡锛屼唬鏇垮浘鏍囷紝閬垮厤"绾枃瀛楀伐绋嬫劅"銆?struct Monogram: View {
+/// 首字圆角方块，代替图标，避免"纯文字工程感"。
+struct Monogram: View {
 
     let name: String
     let tone: Color
@@ -325,8 +342,10 @@ extension AppTopBar where Actions == EmptyView {
     }
 }
 
-// MARK: - 绌虹姸鎬佹彃鐢?
-/// 绌虹姸鎬佹彃鐢伙細浜?+ 涓嬬澶淬€?struct DownloadIllustration: View {
+// MARK: - 空状态插画
+
+/// 空状态插画：云 + 下箭头。
+struct DownloadIllustration: View {
     var body: some View {
         Canvas { context, size in
             let w = size.width
@@ -341,7 +360,8 @@ extension AppTopBar where Actions == EmptyView {
                 with: .color(primary.opacity(0.07))
             )
 
-            // 浜?            context.fill(
+            // 云
+            context.fill(
                 Path(ellipseIn: CGRect(
                     x: w * 0.40 - w * 0.16, y: h * 0.35 - w * 0.16,
                     width: w * 0.32, height: w * 0.32
@@ -362,7 +382,7 @@ extension AppTopBar where Actions == EmptyView {
                 with: .color(primary.opacity(0.28))
             )
 
-            // 鍚戜笅绠ご
+            // 向下箭头
             context.fill(
                 Path(roundedRect: CGRect(
                     x: w * 0.475, y: h * 0.48, width: w * 0.05, height: h * 0.28
@@ -388,7 +408,8 @@ extension AppTopBar where Actions == EmptyView {
     }
 }
 
-/// 绌虹姸鎬佹彃鐢伙細鎼滅储鏀惧ぇ闀溿€?struct SearchIllustration: View {
+/// 空状态插画：搜索放大镜。
+struct SearchIllustration: View {
     var body: some View {
         Canvas { context, size in
             let w = size.width
@@ -421,7 +442,8 @@ extension AppTopBar where Actions == EmptyView {
     }
 }
 
-/// 绌虹姸鎬佹彃鐢伙細鏂囦欢鍒楄〃銆?struct FileListIllustration: View {
+/// 空状态插画：文件列表。
+struct FileListIllustration: View {
     var body: some View {
         Canvas { context, size in
             let w = size.width
@@ -467,8 +489,10 @@ extension AppTopBar where Actions == EmptyView {
     }
 }
 
-// MARK: - 閫氱敤绌虹姸鎬?
-/// 缁熶竴鐨勭┖鐘舵€侊細鍦嗚鏂瑰潡鍥炬爣 + 鏍囬 + 璇存槑銆?struct EmptyStateView<Action: View>: View {
+// MARK: - 通用空状态
+
+/// 统一的空状态：圆角方块图标 + 标题 + 说明。
+struct EmptyStateView<Action: View>: View {
 
     let systemIcon: String
     let title: String
