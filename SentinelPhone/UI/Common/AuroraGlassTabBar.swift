@@ -95,7 +95,7 @@ struct AuroraGlassTabBar: View {
         if #available(iOS 26.0, *) {
             GlassEffectContainer(spacing: 0) {
                 ZStack(alignment: .leading) {
-                    Rectangle()
+                    AuroraShape.bar
                         .fill(Color.clear)
                         .frame(width: width, height: barHeight)
                         .glassEffect(.clear.interactive(), in: AuroraShape.bar)

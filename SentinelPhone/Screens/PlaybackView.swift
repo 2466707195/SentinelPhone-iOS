@@ -59,12 +59,24 @@ struct PlaybackView: View {
             PlaybackSheet(session: session, initialIndex: initialIndex(for: session))
                 .environmentObject(store)
         }
-        .confirmationDialog("删除这段录像？", item: $pendingDelete) { session in
+        .confirmationDialog(
+            "删除这段录像？",
+            isPresented: Binding(
+                get: { pendingDelete != nil },
+                set: { if !$0 { pendingDelete = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
             Button("删除", role: .destructive) {
-                store.deleteSession(id: session.id)
+                if let session = pendingDelete {
+                    store.deleteSession(id: session.id)
+                }
+                pendingDelete = nil
             }
-            Button("取消", role: .cancel) {}
-        } message: { _ in
+            Button("取消", role: .cancel) {
+                pendingDelete = nil
+            }
+        } message: {
             Text("删除后无法恢复；正在录制的机位不能删除。")
         }
         .onAppear(perform: openRequestedSession)
