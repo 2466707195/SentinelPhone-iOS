@@ -27,6 +27,30 @@ targets:
           - "Resources/Info.plist"
     info:
       path: SentinelPhone/Resources/Info.plist
+      properties:
+        CFBundleDevelopmentRegion: zh-Hans
+        CFBundleDisplayName: 车载哨兵
+        CFBundleShortVersionString: "1.0.0"
+        CFBundleVersion: "1"
+        LSRequiresIPhoneOS: true
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true
+          NSAllowsLocalNetworking: true
+        NSBonjourServices:
+          - _carsentinel._tcp
+        NSLocalNetworkUsageDescription: 需要访问局域网，才能自动发现车机、实时接收监控画面和录像。
+        UIApplicationSupportsIndirectInputEvents: true
+        UILaunchScreen: {}
+        UIRequiredDeviceCapabilities:
+          - arm64
+        UIStatusBarStyle: UIStatusBarStyleDarkContent
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UIViewControllerBasedStatusBarAppearance: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.aurora.sentinelphone
