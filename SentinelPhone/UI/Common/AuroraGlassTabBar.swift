@@ -1,6 +1,6 @@
 import SwiftUI
 
-enum SentinelTab: String, CaseIterable, Identifiable {
+enum SentinelTab: String, CaseIterable, Identifiable, Hashable {
     case realtime
     case playback
     case events
