@@ -28,6 +28,7 @@ final class SentinelStore: ObservableObject {
     @Published var relayKey: String = "NhiRFzlTf5RcWDXh7rnypJK0GefI"
     @Published var relayDeviceID: String = ""
     @Published var autoRecord: Bool = false
+    @Published private(set) var localSettings = SentinelSettingsInfo()
 
     /// 事件详情里点「在回放中查看」时给回放页的提示。
     @Published var requestedSessionID: String?
@@ -402,7 +403,10 @@ final class SentinelStore: ObservableObject {
     private func apply(_ status: SentinelStatus) {
         self.status = status
         lastError = nil
-        autoRecord = status.settings?.autoRecord ?? autoRecord
+        if let settings = status.settings {
+            localSettings = settings
+            autoRecord = settings.autoRecord ?? autoRecord
+        }
         if lanAddress.isEmpty, let url = status.device?.lanUrl, !url.isEmpty {
             lanAddress = url.replacingOccurrences(of: "http://", with: "")
         }
@@ -479,13 +483,14 @@ final class SentinelStore: ObservableObject {
     /// 自动开始录制：演示模式只切本地状态，真实连接同步到车机端。
     func setAutoRecord(_ enabled: Bool) {
         autoRecord = enabled
-        guard mode != .demo else {
-            if var status {
-                status.settings?.autoRecord = enabled
-                self.status = status
-            }
-            return
+        var settings = localSettings
+        settings.autoRecord = enabled
+        localSettings = settings
+        if var status {
+            status.settings = settings
+            self.status = status
         }
+        guard mode != .demo else { return }
         Task { @MainActor in
             switch self.mode {
             case .lan:
@@ -546,8 +551,7 @@ final class SentinelStore: ObservableObject {
     }
 
     private func applyLocalConfig(_ values: [String: Any]) {
-        guard var status else { return }
-        var settings = status.settings ?? SentinelSettingsInfo()
+        var settings = localSettings
         if let v = values["liveFps"] as? Int { settings.liveFps = v }
         if let v = values["liveWidth"] as? Int { settings.liveWidth = v }
         if let v = values["liveQuality"] as? Int { settings.liveQuality = v }
@@ -560,9 +564,15 @@ final class SentinelStore: ObservableObject {
         if let v = values["shockEnabled"] as? Bool { settings.shockEnabled = v }
         if let v = values["relayFps"] as? Int { settings.relayFps = v }
         if let v = values["relayWidth"] as? Int { settings.relayWidth = v }
-        if let v = values["autoRecord"] as? Bool { settings.autoRecord = v; autoRecord = v }
-        status.settings = settings
-        self.status = status
+        if let v = values["autoRecord"] as? Bool {
+            settings.autoRecord = v
+            autoRecord = v
+        }
+        localSettings = settings
+        if var status {
+            status.settings = settings
+            self.status = status
+        }
     }
 
     /// 导出一段录像为 zip，返回临时文件 URL。
@@ -589,16 +599,16 @@ final class SentinelStore: ObservableObject {
 
     // MARK: - 设置值
 
-    var liveFps: Int { status?.settings?.liveFps ?? 60 }
-    var liveWidth: Int { status?.settings?.liveWidth ?? 640 }
-    var liveQuality: Int { status?.settings?.liveQuality ?? 55 }
-    var recordFps: Int { status?.settings?.recordFps ?? 2 }
-    var recordWidth: Int { status?.settings?.recordWidth ?? 640 }
-    var recordQuality: Int { status?.settings?.recordQuality ?? 62 }
-    var retentionDays: Int { status?.settings?.retentionDays ?? 3 }
-    var motionEnabled: Bool { status?.settings?.motionEnabled ?? true }
-    var shockEnabled: Bool { status?.settings?.shockEnabled ?? true }
-    var motionSensitivity: Double { status?.settings?.motionSensitivity ?? 0.08 }
+    var liveFps: Int { localSettings.liveFps ?? 60 }
+    var liveWidth: Int { localSettings.liveWidth ?? 640 }
+    var liveQuality: Int { localSettings.liveQuality ?? 55 }
+    var recordFps: Int { localSettings.recordFps ?? 2 }
+    var recordWidth: Int { localSettings.recordWidth ?? 640 }
+    var recordQuality: Int { localSettings.recordQuality ?? 62 }
+    var retentionDays: Int { localSettings.retentionDays ?? 3 }
+    var motionEnabled: Bool { localSettings.motionEnabled ?? true }
+    var shockEnabled: Bool { localSettings.shockEnabled ?? true }
+    var motionSensitivity: Double { localSettings.motionSensitivity ?? 0.08 }
 
     // MARK: - 图片
 
