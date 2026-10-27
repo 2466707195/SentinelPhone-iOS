@@ -524,10 +524,9 @@ final class SentinelStore: ObservableObject {
 
     /// 统一配置更新：预览帧率/清晰度、录制帧率/清晰度/画质等。
     func updateConfig(_ values: [String: Any]) {
-        guard mode != .demo else {
-            applyLocalConfig(values)
-            return
-        }
+        // 先本地生效，开关/滑杆立刻响应；随后再同步到车机
+        applyLocalConfig(values)
+        guard mode != .demo else { return }
         Task { @MainActor in
             switch self.mode {
             case .lan:
