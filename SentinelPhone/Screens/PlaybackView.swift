@@ -37,7 +37,7 @@ struct PlaybackView: View {
     var body: some View {
         VStack(spacing: 0) {
             AppTopBar(title: "回放", subtitle: "按轮次保存的 JPEG 序列") {
-                AuroraIconButton(systemIcon: "arrow.clockwise", size: 38) {
+                TopBarIconButtons(systemIcon: "arrow.clockwise") {
                     store.refreshNow()
                 }
             }

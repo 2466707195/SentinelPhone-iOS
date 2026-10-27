@@ -242,6 +242,33 @@ struct StorageProgress: View {
     }
 }
 
+// MARK: - 顶栏玻璃按钮组
+
+/// 多个玻璃图标按钮必须放进同一个 `GlassEffectContainer`，
+/// 否则 iOS 26 上会各自成团、边缘发灰。
+struct TopBarIconButtons: View {
+
+    var systemIcon: String
+    var action: () -> Void
+    var secondarySystemIcon: String? = nil
+    var secondaryAction: (() -> Void)? = nil
+
+    var body: some View {
+        AuroraGlassContainer(spacing: 8) {
+            HStack(spacing: 8) {
+                AuroraIconButton(systemIcon: systemIcon, size: 38, action: action)
+                if let secondarySystemIcon, let secondaryAction {
+                    AuroraIconButton(
+                        systemIcon: secondarySystemIcon,
+                        size: 38,
+                        action: secondaryAction
+                    )
+                }
+            }
+        }
+    }
+}
+
 // MARK: - 事件颜色
 
 extension SentinelEvent {

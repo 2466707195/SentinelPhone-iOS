@@ -8,7 +8,7 @@ struct DeviceView: View {
     var body: some View {
         VStack(spacing: 0) {
             AppTopBar(title: "设备", subtitle: subtitle) {
-                AuroraIconButton(systemIcon: "arrow.clockwise", size: 38) {
+                TopBarIconButtons(systemIcon: "arrow.clockwise") {
                     store.refreshNow()
                 }
             }

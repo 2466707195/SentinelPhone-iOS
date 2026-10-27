@@ -67,7 +67,7 @@ struct EventsView: View {
     var body: some View {
         VStack(spacing: 0) {
             AppTopBar(title: "事件", subtitle: "移动 / 震动 / 离线 / 抓拍") {
-                AuroraIconButton(systemIcon: "arrow.clockwise", size: 38) {
+                TopBarIconButtons(systemIcon: "arrow.clockwise") {
                     store.refreshNow()
                 }
             }
