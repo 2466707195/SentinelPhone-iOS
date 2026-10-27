@@ -210,7 +210,7 @@ struct SettingsDetailView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            AppTopBar(title: route.title, subtitle: route.subtitle, onBack: { dismiss() })
+            AppTopBar(title: route.title, subtitle: route.subtitle)
 
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 10) {
@@ -585,7 +585,6 @@ struct SettingsDetailView: View {
                             .foregroundStyle(Aurora.muted)
                     }
                 }
-                .tint(Aurora.brand)
             }
         }
     }
@@ -623,9 +622,17 @@ struct SettingsDetailView: View {
                             }
                         }
                     }
-                    BrandButton(text: "立即清理过期录像", systemIcon: "trash") {
+                    Button {
                         store.control("cleanup")
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "trash")
+                            Text("立即清理过期录像")
+                        }
+                        .frame(maxWidth: .infinity)
                     }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.green)
                 }
             }
         }
@@ -646,7 +653,7 @@ struct SettingsDetailView: View {
                             .foregroundStyle(Aurora.muted)
                     }
                 }
-                .tint(Aurora.brand)
+                
 
                 VStack(alignment: .leading, spacing: 6) {
                     HStack {
@@ -665,7 +672,6 @@ struct SettingsDetailView: View {
                         ),
                         in: 0.02...0.30
                     )
-                    .tint(Aurora.brand)
                 }
 
                 Divider().background(Aurora.line.opacity(0.6))
@@ -680,7 +686,6 @@ struct SettingsDetailView: View {
                             .foregroundStyle(Aurora.muted)
                     }
                 }
-                .tint(Aurora.rose)
             }
         }
     }
@@ -838,12 +843,18 @@ struct SettingsDetailView: View {
                                 .foregroundStyle(Aurora.brand)
                         }
                     }
+                    .padding(.horizontal, 12)
                     .padding(.vertical, 11)
-                    .contentShape(Rectangle())
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(option == current ? Aurora.brand.tint(0.10) : Aurora.surfaceVariant.opacity(0.45))
+                    )
+                    .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
                 .buttonStyle(PressScaleStyle())
                 if option != options.last {
-                    Divider().background(Aurora.line.opacity(0.5))
+                    Spacer(minLength: 6)
                 }
             }
         }

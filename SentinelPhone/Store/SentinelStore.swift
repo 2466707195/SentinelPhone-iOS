@@ -63,9 +63,16 @@ final class SentinelStore: ObservableObject {
     func start() {
         guard !started else { return }
         started = true
-        enterDemo()
-        // 进来就开始 Bonjour 扫描，局域网设备出现在「设备」页，不用先切演示/手动
+        // 不再进入演示模式：未连接就显示未连接，已连接只显示真实数据
+        stopNetwork()
+        mode = .lan
+        connection = .idle
+        status = nil
+        sessions = []
+        events = []
+        lastError = nil
         startDiscovery()
+        startRefreshLoop()
     }
 
     func refreshNow() {

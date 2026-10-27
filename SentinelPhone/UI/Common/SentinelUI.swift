@@ -11,31 +11,13 @@ struct BrandButton: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 0) {
-                Spacer(minLength: 0)
-                HStack(spacing: 6) {
-                    if let systemIcon {
-                        Image(systemName: systemIcon)
-                            .font(.system(size: 14, weight: .semibold))
-                    }
-                    Text(text)
-                        .font(AuroraFont.labelLarge)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-                }
-                Spacer(minLength: 0)
-            }
-            .foregroundStyle(.white)
-            .frame(maxWidth: .infinity)
-            .frame(height: 44)
-            .background(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(Aurora.brandGradient)
-                    .shadow(color: Aurora.brand.opacity(0.22), radius: 5, x: 0, y: 2)
-            )
-            .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            Label(text, systemImage: systemIcon ?? "")
+                .font(.body.weight(.semibold))
+                .frame(maxWidth: .infinity)
         }
-        .buttonStyle(PressScaleStyle())
+        .buttonStyle(.borderedProminent)
+        .tint(.green)
+        .controlSize(.large)
         .disabled(!enabled)
         .opacity(enabled ? 1 : 0.45)
     }
@@ -50,37 +32,13 @@ struct RecordControlButton: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 0) {
-                Spacer(minLength: 0)
-                HStack(spacing: 8) {
-                    Image(systemName: isRecording ? "stop.fill" : "record.circle")
-                        .font(.system(size: 13, weight: .bold))
-                    Text(isRecording ? "停止录制" : "开始录制")
-                        .font(AuroraFont.labelLarge)
-                }
-                Spacer(minLength: 0)
-            }
-            .foregroundStyle(isRecording ? Aurora.rose : Color.white)
-            .frame(maxWidth: .infinity)
-            .frame(height: 46)
-            .background(
-                Group {
-                    if isRecording {
-                        RoundedRectangle(cornerRadius: 15, style: .continuous)
-                            .fill(Aurora.rose.tint(0.12))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 15, style: .continuous)
-                                    .stroke(Aurora.rose.opacity(0.24), lineWidth: 1)
-                            )
-                    } else {
-                        RoundedRectangle(cornerRadius: 15, style: .continuous)
-                            .fill(Aurora.brandGradient)
-                    }
-                }
-            )
-            .contentShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+            Label(isRecording ? "停止录制" : "开始录制", systemImage: isRecording ? "stop.fill" : "record.circle")
+                .font(.body.weight(.semibold))
+                .frame(maxWidth: .infinity)
         }
-        .buttonStyle(PressScaleStyle())
+        .buttonStyle(.borderedProminent)
+        .tint(isRecording ? Color.red : Color.green)
+        .controlSize(.large)
     }
 }
 

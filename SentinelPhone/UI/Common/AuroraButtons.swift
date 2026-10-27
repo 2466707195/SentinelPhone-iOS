@@ -154,20 +154,13 @@ struct SmallTonalButton: View {
 
     var body: some View {
         Button(action: action) {
-            AuroraButtonLabel(
-                text: text,
-                systemIcon: systemIcon,
-                height: height,
-                font: AuroraFont.labelMedium,
-                expands: expands
-            )
-            .foregroundStyle(Aurora.brand)
-            .auroraNeutralGlass(
-                RoundedRectangle(cornerRadius: 13, style: .continuous),
-                shadowRadius: 0
-            )
+            Label(text, systemImage: systemIcon ?? "")
+                .font(.subheadline.weight(.semibold))
+                .frame(maxWidth: expands ? .infinity : nil)
         }
-        .buttonStyle(PressScaleStyle())
+        .buttonStyle(.bordered)
+        .tint(.green)
+        .controlSize(.small)
         .disabled(!enabled)
         .opacity(enabled ? 1 : 0.45)
     }
