@@ -98,19 +98,14 @@ struct AuroraGlassTabBar: View {
                     AuroraShape.bar
                         .fill(Color.clear)
                         .frame(width: width, height: barHeight)
-                        .glassEffect(.clear.interactive(), in: AuroraShape.bar)
+                        .glassEffect(.regular.interactive(), in: AuroraShape.bar)
 
                     Capsule()
                         .fill(Color.clear)
                         .frame(width: capsuleWidth, height: 54)
                         .offset(x: capsuleX)
-                        .glassEffect(
-                            .regular
-                                .tint(Aurora.brand.opacity(0.16))
-                                .interactive(),
-                            in: Capsule()
-                        )
-                        .shadow(color: Aurora.brand.opacity(0.10), radius: 4, x: 0, y: 2)
+                        .glassEffect(.regular.interactive(), in: Capsule())
+                        .shadow(color: Color.black.opacity(0.10), radius: 4, x: 0, y: 2)
                 }
             }
         } else {
@@ -120,37 +115,20 @@ struct AuroraGlassTabBar: View {
                     .frame(width: width, height: barHeight)
 
                 Capsule(style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                Aurora.brand.opacity(0.20),
-                                Aurora.brand.opacity(0.12),
-                                Aurora.teal.opacity(0.10)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                    .fill(Material.ultraThinMaterial)
                     .overlay(
                         Capsule(style: .continuous)
-                            .stroke(
-                                LinearGradient(
-                                    colors: [Color.white.opacity(0.65), Aurora.brand.opacity(0.20)],
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                ),
-                                lineWidth: 1
-                            )
+                            .stroke(Color.white.opacity(0.55), lineWidth: 1)
                     )
                     .frame(width: capsuleWidth, height: 54)
                     .offset(x: capsuleX)
-                    .shadow(color: Aurora.brand.opacity(0.12), radius: 4, x: 0, y: 2)
+                    .shadow(color: Color.black.opacity(0.10), radius: 4, x: 0, y: 2)
             }
             .auroraGlassSurface(
                 AuroraShape.bar,
                 tone: .white,
-                tint: 0.06,
-                border: 0.22,
+                tint: 0.04,
+                border: 0.18,
                 shadowRadius: 0,
                 shadowY: 0
             )

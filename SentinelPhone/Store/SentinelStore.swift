@@ -27,7 +27,7 @@ final class SentinelStore: ObservableObject {
     @Published var relayURL: String = ""
     @Published var relayKey: String = ""
     @Published var relayDeviceID: String = ""
-    @Published var autoRecord: Bool = true
+    @Published var autoRecord: Bool = false
 
     /// 事件详情里点「在回放中查看」时给回放页的提示。
     @Published var requestedSessionID: String?

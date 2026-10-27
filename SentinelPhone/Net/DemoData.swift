@@ -79,7 +79,7 @@ enum DemoData {
             ),
             settings: SentinelSettingsInfo(
                 retentionDays: 3,
-                autoRecord: true,
+                autoRecord: false,
                 motionEnabled: true,
                 shockEnabled: true
             ),
