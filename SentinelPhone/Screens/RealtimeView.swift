@@ -288,9 +288,8 @@ struct ChannelPreviewView: View {
                 GeometryReader { proxy in
                     Image(uiImage: image)
                         .resizable()
-                        .scaledToFill()
+                        .scaledToFit()
                         .frame(width: proxy.size.width, height: proxy.size.height)
-                        .clipped()
                 }
                 .ignoresSafeArea()
             } else if store.isDemo {

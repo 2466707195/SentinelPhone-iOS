@@ -76,7 +76,7 @@ struct AuroraGlassTabBar: View {
                 }
             }
             .frame(width: width, height: barHeight)
-            .contentShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+            .contentShape(Capsule())
             .onTapGesture { }
             .simultaneousGesture(dragGesture(width: width, itemWidth: itemWidth, capsuleWidth: capsuleWidth))
         }
@@ -93,19 +93,19 @@ struct AuroraGlassTabBar: View {
     ) -> some View {
         let capsuleX = dragCapsuleX ?? targetX
         if #available(iOS 26.0, *) {
-            GlassEffectContainer(spacing: 0) {
+            GlassEffectContainer(spacing: 8) {
                 ZStack(alignment: .leading) {
-                    AuroraShape.bar
+                    Capsule()
                         .fill(Color.clear)
                         .frame(width: width, height: barHeight)
-                        .glassEffect(.regular.interactive(), in: AuroraShape.bar)
+                        .glassEffect(.regular.interactive(), in: Capsule())
 
                     Capsule()
                         .fill(Color.clear)
                         .frame(width: capsuleWidth, height: 54)
                         .offset(x: capsuleX)
                         .glassEffect(.regular.interactive(), in: Capsule())
-                        .shadow(color: Color.black.opacity(0.10), radius: 4, x: 0, y: 2)
+                        .shadow(color: Color.black.opacity(0.08), radius: 3, x: 0, y: 1)
                         .simultaneousGesture(
                             dragGesture(width: width, itemWidth: itemWidth, capsuleWidth: capsuleWidth)
                         )
@@ -113,7 +113,7 @@ struct AuroraGlassTabBar: View {
             }
         } else {
             ZStack(alignment: .leading) {
-                AuroraShape.bar
+                Capsule()
                     .fill(Color.clear)
                     .frame(width: width, height: barHeight)
 
@@ -131,9 +131,9 @@ struct AuroraGlassTabBar: View {
                     )
             }
             .auroraGlassSurface(
-                AuroraShape.bar,
+                Capsule(),
                 tone: .white,
-                tint: 0.04,
+                tint: 0.05,
                 border: 0.18,
                 shadowRadius: 0,
                 shadowY: 0
