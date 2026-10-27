@@ -4,6 +4,7 @@ struct RealtimeView: View {
 
     @EnvironmentObject private var store: SentinelStore
     var onOpenDevices: () -> Void = {}
+    @State private var previewChannel: SentinelChannel?
 
     private var channels: [SentinelChannel] {
         if let channels = store.status?.channels, !channels.isEmpty { return channels }
@@ -37,6 +38,10 @@ struct RealtimeView: View {
                 .padding(.horizontal, AuroraMetrics.pagePadding)
                 .padding(.top, 2)
                 .padding(.bottom, 124)
+            }
+            .fullScreenCover(item: $previewChannel) { channel in
+                ChannelPreviewView(channel: channel)
+                    .environmentObject(store)
             }
         }
     }
@@ -157,6 +162,10 @@ struct RealtimeView: View {
                         isDemo: store.isDemo,
                         error: store.channelErrors[channel.id]
                     )
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        previewChannel = channel
+                    }
                 }
             }
         }
@@ -262,5 +271,98 @@ struct RealtimeView: View {
         guard let status = store.status else { return "—" }
         if status.isRecording { return formatDuration(status.recordingDuration) }
         return "未在录制"
+    }
+}
+
+// MARK: - 机位放大预览
+
+struct ChannelPreviewView: View {
+
+    let channel: SentinelChannel
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var store: SentinelStore
+
+    var body: some View {
+        ZStack {
+            Color(hex: 0x08060F)
+
+            if let image = store.frames[channel.id] {
+                GeometryReader { proxy in
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                        .clipped()
+                }
+            } else if store.isDemo {
+                DemoFrameView(channelID: channel.id)
+            } else {
+                VStack(spacing: 8) {
+                    Image(systemName: channel.isOnline ? "hourglass" : "wifi.slash")
+                        .font(.system(size: 26, weight: .semibold))
+                        .foregroundStyle(Color.white.opacity(0.62))
+                    Text(channel.isOnline ? "正在加载画面…" : "机位离线")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(Color.white.opacity(0.58))
+                }
+            }
+
+            LinearGradient(
+                stops: [
+                    .init(color: .black.opacity(0.60), location: 0),
+                    .init(color: .clear, location: 0.30),
+                    .init(color: .clear, location: 0.62),
+                    .init(color: .black.opacity(0.66), location: 1)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+
+            VStack {
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(channel.displayName)
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundStyle(.white)
+                        Text(channel.sourceLabel ?? channel.source ?? "摄像头")
+                            .font(.system(size: 10.5, weight: .medium))
+                            .foregroundStyle(Color.white.opacity(0.66))
+                    }
+                    Spacer()
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 38, height: 38)
+                            .background(Circle().fill(Color.black.opacity(0.38)))
+                            .overlay(Circle().stroke(Color.white.opacity(0.16), lineWidth: 1))
+                    }
+                    .buttonStyle(PressScaleStyle())
+                }
+
+                Spacer(minLength: 0)
+
+                HStack(alignment: .bottom) {
+                    TimelineView(.periodic(from: .now, by: 1)) { context in
+                        Text(formatClock(store.frameDates[channel.id] ?? context.date))
+                            .font(.system(size: 12, weight: .medium, design: .monospaced))
+                            .foregroundStyle(.white)
+                    }
+                    Spacer(minLength: 0)
+                    VStack(alignment: .trailing, spacing: 3) {
+                        Text(channel.displayResolution)
+                            .font(.system(size: 10, weight: .medium, design: .monospaced))
+                            .foregroundStyle(Color.white.opacity(0.78))
+                        Text(channel.isOnline ? "\(channel.displayFPS) fps" : "OFFLINE")
+                            .font(.system(size: 9.5, weight: .medium))
+                            .foregroundStyle(channel.isOnline ? Aurora.teal : Aurora.warning)
+                    }
+                }
+            }
+            .padding(16)
+        }
+        .ignoresSafeArea()
     }
 }

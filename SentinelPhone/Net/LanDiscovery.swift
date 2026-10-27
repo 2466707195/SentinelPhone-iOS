@@ -88,6 +88,8 @@ final class LanDiscovery: NSObject, NetServiceBrowserDelegate, NetServiceDelegat
         data.withUnsafeBytes { pointer -> String? in
             guard let base = pointer.baseAddress else { return nil }
             let sockaddrPointer = base.assumingMemoryBound(to: sockaddr.self)
+            // 只取 IPv4：Android NSD 常把 IPv6 link-local 放在前面，URLSession 用不了
+            guard Int(sockaddrPointer.pointee.sa_family) == AF_INET else { return nil }
             var host = [CChar](repeating: 0, count: Int(NI_MAXHOST))
             let length = socklen_t(sockaddrPointer.pointee.sa_len)
             let result = getnameinfo(

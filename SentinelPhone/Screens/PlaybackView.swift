@@ -21,6 +21,7 @@ struct PlaybackView: View {
     @EnvironmentObject private var store: SentinelStore
     @State private var range: PlaybackRange = .all
     @State private var selected: RecordingSession?
+    @State private var pendingDelete: RecordingSession?
 
     private var filtered: [RecordingSession] {
         let sorted = store.sessions.sorted { ($0.startedAt ?? 0) > ($1.startedAt ?? 0) }
@@ -57,6 +58,14 @@ struct PlaybackView: View {
         .sheet(item: $selected) { session in
             PlaybackSheet(session: session, initialIndex: initialIndex(for: session))
                 .environmentObject(store)
+        }
+        .confirmationDialog("删除这段录像？", item: $pendingDelete) { session in
+            Button("删除", role: .destructive) {
+                store.deleteSession(id: session.id)
+            }
+            Button("取消", role: .cancel) {}
+        } message: { _ in
+            Text("删除后无法恢复；正在录制的机位不能删除。")
         }
         .onAppear(perform: openRequestedSession)
         .onChange(of: store.requestedSessionID) { _ in
@@ -176,6 +185,8 @@ struct PlaybackView: View {
                 ForEach(filtered) { session in
                     PlaybackSessionRow(session: session) {
                         selected = session
+                    } onDelete: {
+                        pendingDelete = session
                     }
                 }
             }
@@ -189,6 +200,7 @@ struct PlaybackSessionRow: View {
 
     let session: RecordingSession
     let onPlay: () -> Void
+    let onDelete: () -> Void
 
     @EnvironmentObject private var store: SentinelStore
     @State private var thumbnail: UIImage?
@@ -235,6 +247,19 @@ struct PlaybackSessionRow: View {
                 }
 
                 Spacer(minLength: 0)
+
+                if !session.isActive {
+                    Button(action: onDelete) {
+                        Image(systemName: "trash")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(Aurora.rose)
+                            .frame(width: 34, height: 34)
+                            .background(Circle().fill(Aurora.rose.tint(0.12)))
+                            .overlay(Circle().stroke(Aurora.rose.opacity(0.16), lineWidth: 1))
+                    }
+                    .buttonStyle(PressScaleStyle())
+                    Spacer(minLength: 8)
+                }
 
                 Button(action: onPlay) {
                     Image(systemName: "play.fill")

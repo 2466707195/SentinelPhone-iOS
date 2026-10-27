@@ -26,20 +26,18 @@ struct DeviceView: View {
                     }
 
                     switch store.mode {
-                    case .demo:
-                        demoCard
-                    case .lan:
+                    case .demo, .lan:
                         lanCard
                     case .relay:
                         relayCard
                     }
 
-                    if let status = store.status {
+                    if let status = store.status, !store.isDemo {
                         deviceCard(status)
                         channelCard(status)
                         storageCard(status)
                         actionCard
-                    } else if store.mode != .demo {
+                    } else if store.mode == .lan || store.mode == .relay {
                         notConnectedCard
                     }
 
@@ -64,7 +62,7 @@ struct DeviceView: View {
 
     private var modeSelector: some View {
         HStack(spacing: 4) {
-            ForEach(ConnectionMode.allCases) { mode in
+            ForEach([ConnectionMode.lan, .relay], id: \.self) { mode in
                 let selected = store.mode == mode
                 Button {
                     withAnimation(.easeInOut(duration: 0.20)) {
@@ -522,6 +520,18 @@ struct DeviceView: View {
                     systemIcon: "bolt.fill",
                     tone: Aurora.warning
                 )
+                Toggle(isOn: Binding(get: { store.autoRecord }, set: { store.setAutoRecord($0) })) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("自动开始录制")
+                            .font(AuroraFont.labelLarge)
+                            .foregroundStyle(Aurora.ink)
+                        Text("车机服务启动后立即开始录像")
+                            .font(AuroraFont.labelSmall)
+                            .foregroundStyle(Aurora.muted)
+                    }
+                }
+                .tint(Aurora.brand)
+                Divider().background(Aurora.line.opacity(0.6))
                 HStack(spacing: 8) {
                     actionButton("抓拍", icon: "camera.fill", tone: Aurora.brand) {
                         store.control("snapshot")

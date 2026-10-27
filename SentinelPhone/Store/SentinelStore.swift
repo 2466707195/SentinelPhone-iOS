@@ -27,6 +27,7 @@ final class SentinelStore: ObservableObject {
     @Published var relayURL: String = ""
     @Published var relayKey: String = ""
     @Published var relayDeviceID: String = ""
+    @Published var autoRecord: Bool = true
 
     /// 事件详情里点「在回放中查看」时给回放页的提示。
     @Published var requestedSessionID: String?
@@ -63,6 +64,8 @@ final class SentinelStore: ObservableObject {
         guard !started else { return }
         started = true
         enterDemo()
+        // 进来就开始 Bonjour 扫描，局域网设备出现在「设备」页，不用先切演示/手动
+        startDiscovery()
     }
 
     func refreshNow() {
@@ -392,6 +395,7 @@ final class SentinelStore: ObservableObject {
     private func apply(_ status: SentinelStatus) {
         self.status = status
         lastError = nil
+        autoRecord = status.settings?.autoRecord ?? autoRecord
         if lanAddress.isEmpty, let url = status.device?.lanUrl, !url.isEmpty {
             lanAddress = url.replacingOccurrences(of: "http://", with: "")
         }
@@ -463,6 +467,52 @@ final class SentinelStore: ObservableObject {
 
     func toggleRecording() {
         control((status?.isRecording ?? false) ? "stop_record" : "start_record")
+    }
+
+    /// 自动开始录制：演示模式只切本地状态，真实连接同步到车机端。
+    func setAutoRecord(_ enabled: Bool) {
+        autoRecord = enabled
+        guard mode != .demo else {
+            if var status {
+                status.settings?.autoRecord = enabled
+                self.status = status
+            }
+            return
+        }
+        Task { @MainActor in
+            switch self.mode {
+            case .lan:
+                if let lan = self.lan {
+                    _ = try? await lan.sendControl("set_auto_record", payload: ["enabled": enabled])
+                    await self.refreshLAN()
+                }
+            case .relay:
+                self.relay?.sendCommand("set_auto_record", payload: ["enabled": enabled])
+                try? await Task.sleep(nanoseconds: 400_000_000)
+                await self.refreshRelayStatus()
+            case .demo:
+                break
+            }
+        }
+    }
+
+    /// 删除一段录像；车机端正在录制的机位不允许删。
+    func deleteSession(id: String) {
+        Task { @MainActor in
+            switch self.mode {
+            case .demo:
+                self.sessions.removeAll { $0.id == id }
+            case .lan:
+                if let lan = self.lan {
+                    _ = try? await lan.sendControl("delete_session", payload: ["sessionId": id])
+                    await self.refreshLists()
+                }
+            case .relay:
+                self.relay?.sendCommand("delete_session", payload: ["sessionId": id])
+                try? await Task.sleep(nanoseconds: 500_000_000)
+                await self.refreshLists()
+            }
+        }
     }
 
     // MARK: - 图片

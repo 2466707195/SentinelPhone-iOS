@@ -36,7 +36,8 @@ enum SentinelTab: String, CaseIterable, Identifiable {
     }
 }
 
-/// 透明玻璃底栏。选中态是一枚可以左右拖动、松手吸附到最近 Tab 的胶囊。
+/// 透明玻璃底栏。iOS 26 用真正的 Liquid Glass：底栏 `.clear`，选中胶囊 `.regular`，
+/// 两者放进同一个 `GlassEffectContainer`，靠近时才会融合出透镜感。
 struct AuroraGlassTabBar: View {
 
     @Binding var selection: SentinelTab
@@ -61,14 +62,12 @@ struct AuroraGlassTabBar: View {
             )
 
             ZStack(alignment: .leading) {
-                capsule(width: capsuleWidth)
-                    .offset(x: dragCapsuleX ?? targetX)
-                    .animation(
-                        dragCapsuleX == nil
-                            ? .spring(response: 0.34, dampingFraction: 0.80)
-                            : nil,
-                        value: targetX
-                    )
+                barLayer(
+                    width: width,
+                    itemWidth: itemWidth,
+                    capsuleWidth: capsuleWidth,
+                    targetX: targetX
+                )
 
                 HStack(spacing: 0) {
                     ForEach(SentinelTab.allCases) { tab in
@@ -82,42 +81,80 @@ struct AuroraGlassTabBar: View {
             .simultaneousGesture(dragGesture(width: width, itemWidth: itemWidth, capsuleWidth: capsuleWidth))
         }
         .frame(height: barHeight)
-        .auroraGlassSurface(
-            AuroraShape.bar,
-            tone: .white,
-            tint: 0.06,
-            border: 0.22,
-            shadowRadius: 14,
-            shadowY: 6
-        )
+        .shadow(color: Aurora.barShadow, radius: 14, x: 0, y: 6)
     }
 
-    private func capsule(width: CGFloat) -> some View {
-        Capsule(style: .continuous)
-            .fill(
-                LinearGradient(
-                    colors: [
-                        Aurora.brand.opacity(0.20),
-                        Aurora.brand.opacity(0.12),
-                        Aurora.teal.opacity(0.10)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
-            .overlay(
+    @ViewBuilder
+    private func barLayer(
+        width: CGFloat,
+        itemWidth: CGFloat,
+        capsuleWidth: CGFloat,
+        targetX: CGFloat
+    ) -> some View {
+        let capsuleX = dragCapsuleX ?? targetX
+        if #available(iOS 26.0, *) {
+            GlassEffectContainer(spacing: 0) {
+                ZStack(alignment: .leading) {
+                    Rectangle()
+                        .fill(Color.clear)
+                        .frame(width: width, height: barHeight)
+                        .glassEffect(.clear.interactive(), in: AuroraShape.bar)
+
+                    Capsule()
+                        .fill(Color.clear)
+                        .frame(width: capsuleWidth, height: 54)
+                        .offset(x: capsuleX)
+                        .glassEffect(
+                            .regular
+                                .tint(Aurora.brand.opacity(0.16))
+                                .interactive(),
+                            in: Capsule()
+                        )
+                        .shadow(color: Aurora.brand.opacity(0.10), radius: 4, x: 0, y: 2)
+                }
+            }
+        } else {
+            ZStack(alignment: .leading) {
+                Rectangle()
+                    .fill(AuroraShape.bar)
+                    .frame(width: width, height: barHeight)
+
                 Capsule(style: .continuous)
-                    .stroke(
+                    .fill(
                         LinearGradient(
-                            colors: [Color.white.opacity(0.65), Aurora.brand.opacity(0.20)],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        ),
-                        lineWidth: 1
+                            colors: [
+                                Aurora.brand.opacity(0.20),
+                                Aurora.brand.opacity(0.12),
+                                Aurora.teal.opacity(0.10)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
                     )
+                    .overlay(
+                        Capsule(style: .continuous)
+                            .stroke(
+                                LinearGradient(
+                                    colors: [Color.white.opacity(0.65), Aurora.brand.opacity(0.20)],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                ),
+                                lineWidth: 1
+                            )
+                    )
+                    .frame(width: capsuleWidth, height: 54)
+                    .offset(x: capsuleX)
+                    .shadow(color: Aurora.brand.opacity(0.12), radius: 4, x: 0, y: 2)
+            }
+            .auroraGlassSurface(
+                AuroraShape.bar,
+                tone: .white,
+                tint: 0.06,
+                border: 0.22,
+                shadowRadius: 0,
+                shadowY: 0
             )
-            .frame(width: width, height: 54)
-            .shadow(color: Aurora.brand.opacity(0.12), radius: 4, x: 0, y: 2)
+        }
     }
 
     private func item(tab: SentinelTab, itemWidth: CGFloat) -> some View {
