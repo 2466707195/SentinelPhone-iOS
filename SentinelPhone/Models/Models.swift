@@ -162,8 +162,8 @@ struct RecordingSession: Codable, Identifiable, Hashable {
     var sizeText: String { formatBytes(bytes ?? 0) }
     var count: Int { frameCount ?? frames ?? 0 }
     var interval: TimeInterval {
-        let ms = intervalMs ?? 500
-        return max(0.08, ms / 1000)
+        let ms = intervalMs ?? 33
+        return max(0.016, ms / 1000)
     }
     var isActive: Bool { (endedAt ?? 0) <= 0 }
     var resolutionText: String {

@@ -9,9 +9,9 @@ enum PlaybackRange: String, CaseIterable, Identifiable {
     var id: String { rawValue }
     var title: String {
         switch self {
-        case .today: return "今天"
-        case .yesterday: return "昨天"
-        case .all: return "全部"
+        case .today: return "浠婂ぉ"
+        case .yesterday: return "鏄ㄥぉ"
+        case .all: return "鍏ㄩ儴"
         }
     }
 }
@@ -39,7 +39,7 @@ struct PlaybackView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            AppTopBar(title: "回放", subtitle: "按轮次保存的 JPEG 序列") {
+            AppTopBar(title: "鍥炴斁", subtitle: "鎸夎疆娆′繚瀛樼殑 JPEG 搴忓垪") {
                 TopBarIconButtons(systemIcon: "arrow.clockwise") {
                     store.refreshNow()
                 }
@@ -62,24 +62,24 @@ struct PlaybackView: View {
                 .environmentObject(store)
         }
         .confirmationDialog(
-            "删除这段录像？",
+            "鍒犻櫎杩欐褰曞儚锛?,
             isPresented: Binding(
                 get: { pendingDelete != nil },
                 set: { if !$0 { pendingDelete = nil } }
             ),
             titleVisibility: .visible
         ) {
-            Button("删除", role: .destructive) {
+            Button("鍒犻櫎", role: .destructive) {
                 if let session = pendingDelete {
                     store.deleteSession(id: session.id)
                 }
                 pendingDelete = nil
             }
-            Button("取消", role: .cancel) {
+            Button("鍙栨秷", role: .cancel) {
                 pendingDelete = nil
             }
         } message: {
-            Text("删除后无法恢复；正在录制的机位不能删除。")
+            Text("鍒犻櫎鍚庢棤娉曟仮澶嶏紱姝ｅ湪褰曞埗鐨勬満浣嶄笉鑳藉垹闄ゃ€?)
         }
         .sheet(isPresented: Binding(
             get: { exportURL != nil },
@@ -117,7 +117,7 @@ struct PlaybackView: View {
         }
     }
 
-    // MARK: - 存储
+    // MARK: - 瀛樺偍
 
     private var storageCard: some View {
         SectionCard {
@@ -132,15 +132,15 @@ struct PlaybackView: View {
                                 .foregroundStyle(Aurora.brand)
                         )
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("循环存储")
+                        Text("寰幆瀛樺偍")
                             .font(AuroraFont.titleSmall)
                             .foregroundStyle(Aurora.ink)
-                        Text("保留 \(store.status?.retentionText ?? "3 天") · \(store.status?.metrics?.recordFps ?? 2) fps")
+                        Text("淇濈暀 \(store.status?.retentionText ?? "3 澶?) 路 \(store.status?.metrics?.recordFps ?? 30) fps")
                             .font(AuroraFont.labelSmall)
                             .foregroundStyle(Aurora.muted)
                     }
                     Spacer()
-                    Text("\(store.status?.freeText ?? "—") 可用")
+                    Text("\(store.status?.freeText ?? "鈥?) 鍙敤")
                         .font(AuroraFont.labelLarge)
                         .foregroundStyle(Aurora.brandDeep)
                 }
@@ -151,26 +151,25 @@ struct PlaybackView: View {
                 )
 
                 HStack {
-                    Text("已用 \(store.status?.recordText ?? "—")")
+                    Text("宸茬敤 \(store.status?.recordText ?? "鈥?)")
                         .font(AuroraFont.labelSmall)
                         .foregroundStyle(Aurora.inkSoft)
                     Spacer()
-                    Text("共 \(formatBytes(store.status?.storage?.totalBytes ?? 0))")
+                    Text("鍏?\(formatBytes(store.status?.storage?.totalBytes ?? 0))")
                         .font(AuroraFont.labelSmall)
                         .foregroundStyle(Aurora.muted)
                 }
 
                 HStack(spacing: 6) {
-                    TinyTag(text: store.status?.retentionText ?? "3 天", systemIcon: "calendar", tone: Aurora.brand)
+                    TinyTag(text: store.status?.retentionText ?? "3 澶?, systemIcon: "calendar", tone: Aurora.brand)
                     TinyTag(text: "640 px", systemIcon: "rectangle.compress.vertical", tone: Aurora.teal)
-                    TinyTag(text: "\(store.status?.metrics?.recordFps ?? 2) fps", systemIcon: "speedometer", tone: Aurora.rose)
+                    TinyTag(text: "\(store.status?.metrics?.recordFps ?? 30) fps", systemIcon: "speedometer", tone: Aurora.rose)
                 }
             }
         }
     }
 
-    // MARK: - 筛选
-
+    // MARK: - 绛涢€?
     private var filterBar: some View {
         HStack(spacing: 7) {
             ForEach(PlaybackRange.allCases) { item in
@@ -185,7 +184,7 @@ struct PlaybackView: View {
 
     private var sessionsHeader: some View {
         HStack {
-            Text("录像列表")
+            Text("褰曞儚鍒楄〃")
                 .font(AuroraFont.titleMedium)
                 .foregroundStyle(Aurora.ink)
             Text("\(filtered.count)")
@@ -193,7 +192,7 @@ struct PlaybackView: View {
                 .foregroundStyle(Aurora.muted)
             Spacer()
             if store.isDemo {
-                Text("演示数据")
+                Text("婕旂ず鏁版嵁")
                     .font(AuroraFont.labelSmall)
                     .foregroundStyle(Aurora.warning)
             }
@@ -207,8 +206,8 @@ struct PlaybackView: View {
             SectionCard {
                 EmptyStateView(
                     systemIcon: "play.rectangle",
-                    title: "还没有录像",
-                    message: "车机开始录制后，按轮次保存的画面会出现在这里。"
+                    title: "杩樻病鏈夊綍鍍?,
+                    message: "杞︽満寮€濮嬪綍鍒跺悗锛屾寜杞淇濆瓨鐨勭敾闈細鍑虹幇鍦ㄨ繖閲屻€?
                 )
                 .padding(.vertical, 12)
             }
@@ -228,8 +227,7 @@ struct PlaybackView: View {
     }
 }
 
-// MARK: - 列表行
-
+// MARK: - 鍒楄〃琛?
 struct PlaybackSessionRow: View {
 
     let session: RecordingSession
@@ -259,7 +257,7 @@ struct PlaybackSessionRow: View {
                             .foregroundStyle(Aurora.ink)
                             .lineLimit(1)
                         if session.isActive {
-                            Text("录制中")
+                            Text("褰曞埗涓?)
                                 .font(.system(size: 9, weight: .bold))
                                 .foregroundStyle(Aurora.rose)
                                 .padding(.horizontal, 5)
@@ -276,7 +274,7 @@ struct PlaybackSessionRow: View {
                         Text(session.sizeText)
                             .font(.system(size: 10, weight: .medium))
                             .foregroundStyle(Aurora.inkSoft)
-                        Text("\(session.count) 帧")
+                        Text("\(session.count) 甯?)
                             .font(.system(size: 10, weight: .medium))
                             .foregroundStyle(Aurora.muted)
                     }
@@ -367,7 +365,7 @@ struct PlaybackSessionRow: View {
             VStack {
                 Spacer()
                 HStack {
-                    Text(session.channelName ?? "机位")
+                    Text(session.channelName ?? "鏈轰綅")
                         .font(.system(size: 9, weight: .semibold))
                         .foregroundStyle(.white)
                     Spacer()
@@ -382,7 +380,7 @@ struct PlaybackSessionRow: View {
     }
 }
 
-// MARK: - 播放弹窗
+// MARK: - 鎾斁寮圭獥
 
 struct PlaybackSheet: View {
 
@@ -397,7 +395,7 @@ struct PlaybackSheet: View {
     @State private var image: UIImage?
 
     private var frameCount: Int { max(1, session.count) }
-    private var interval: TimeInterval { max(0.12, session.interval) }
+    private var interval: TimeInterval { max(0.033, session.interval) }
     private var currentDate: Date {
         session.startDate.addingTimeInterval(Double(index) * interval)
     }
@@ -433,10 +431,10 @@ struct PlaybackSheet: View {
     private var header: some View {
         HStack(spacing: 10) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("回放")
+                Text("鍥炴斁")
                     .font(AuroraFont.headlineSmall)
                     .foregroundStyle(Aurora.ink)
-                Text("\(session.displayName) · \(dayTimeLabel(session.startDate))")
+                Text("\(session.displayName) 路 \(dayTimeLabel(session.startDate))")
                     .font(AuroraFont.labelSmall)
                     .foregroundStyle(Aurora.muted)
             }
@@ -453,8 +451,7 @@ struct PlaybackSheet: View {
         .padding(.bottom, 4)
     }
 
-    // MARK: - 播放器
-
+    // MARK: - 鎾斁鍣?
     private var player: some View {
         ZStack {
             Color(hex: 0x0C0912)
@@ -474,7 +471,7 @@ struct PlaybackSheet: View {
                     Image(systemName: "play.rectangle")
                         .font(.system(size: 28, weight: .regular))
                         .foregroundStyle(Color.white.opacity(0.55))
-                    Text(session.isActive ? "这一轮还在录制" : "正在读取画面…")
+                    Text(session.isActive ? "杩欎竴杞繕鍦ㄥ綍鍒? : "姝ｅ湪璇诲彇鐢婚潰鈥?)
                         .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(Color.white.opacity(0.55))
                 }
@@ -494,7 +491,7 @@ struct PlaybackSheet: View {
             VStack {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(session.channelName ?? "机位")
+                        Text(session.channelName ?? "鏈轰綅")
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundStyle(.white)
                         Text(dayTimeLabel(session.startDate))
@@ -545,7 +542,7 @@ struct PlaybackSheet: View {
         )
     }
 
-    // MARK: - 控制
+    // MARK: - 鎺у埗
 
     private var controls: some View {
         SectionCard {
@@ -625,22 +622,22 @@ struct PlaybackSheet: View {
         SectionCard {
             VStack(alignment: .leading, spacing: 10) {
                 AuroraSectionHeader(
-                    title: "录像信息",
-                    subtitle: "JPEG 序列回放",
+                    title: "褰曞儚淇℃伅",
+                    subtitle: "JPEG 搴忓垪鍥炴斁",
                     systemIcon: "info.circle",
-                    trailingText: "\(frameCount) 帧"
+                    trailingText: "\(frameCount) 甯?
                 )
                 Divider().background(Aurora.line.opacity(0.6))
-                InfoRow(label: "开始时间", value: formatTime(session.startDate), systemIcon: "calendar")
-                InfoRow(label: "时长", value: session.durationText, systemIcon: "clock")
-                InfoRow(label: "分辨率", value: session.resolutionText, systemIcon: "rectangle")
-                InfoRow(label: "帧率", value: String(format: "%.1f fps", 1 / interval), systemIcon: "speedometer")
-                InfoRow(label: "大小", value: session.sizeText, systemIcon: "externaldrive")
+                InfoRow(label: "寮€濮嬫椂闂?, value: formatTime(session.startDate), systemIcon: "calendar")
+                InfoRow(label: "鏃堕暱", value: session.durationText, systemIcon: "clock")
+                InfoRow(label: "鍒嗚鲸鐜?, value: session.resolutionText, systemIcon: "rectangle")
+                InfoRow(label: "甯х巼", value: String(format: "%.1f fps", 1 / interval), systemIcon: "speedometer")
+                InfoRow(label: "澶у皬", value: session.sizeText, systemIcon: "externaldrive")
             }
         }
     }
 
-    // MARK: - 播放逻辑
+    // MARK: - 鎾斁閫昏緫
 
     @MainActor
     private func togglePlay() {
@@ -679,8 +676,7 @@ struct PlaybackSheet: View {
 
     @MainActor
     private func share() {
-        // 回放目前是只读查看；分享入口保留给后续导出单帧。
-    }
+        // 鍥炴斁鐩墠鏄彧璇绘煡鐪嬶紱鍒嗕韩鍏ュ彛淇濈暀缁欏悗缁鍑哄崟甯с€?    }
 }
 
 
