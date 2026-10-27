@@ -68,7 +68,6 @@ struct DeviceView: View {
                         previewGroup
                         recordingGroup
                         storageGroup
-                        detectionGroup
                         deviceGroup
                     }
                     .padding(.horizontal, AuroraMetrics.pagePadding)
