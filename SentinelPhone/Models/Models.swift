@@ -235,7 +235,7 @@ struct SentinelConfigSnapshot: Codable {
     var channels: [SentinelChannel]? = nil
 }
 
-struct RelayDevice: Codable, Identifiable, Hashable {
+struct RelayDevice: Codable, Identifiable {
     var id: String
     var name: String? = nil
     var online: Bool? = nil

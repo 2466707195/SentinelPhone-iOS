@@ -172,10 +172,10 @@ struct RealtimeView: View {
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .fill(
                         LinearGradient(
-                            colors: hintTone.tint(0.18), hintTone.tint(0.06)
-                        ),
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
+                            colors: [hintTone.tint(0.18), hintTone.tint(0.06)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
                     )
                     .frame(width: 42, height: 42)
                     .overlay(
