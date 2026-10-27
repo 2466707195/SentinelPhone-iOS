@@ -166,6 +166,50 @@ struct SmallTonalButton: View {
     }
 }
 
+/// 成对出现的动作按钮：**毛玻璃**底、等高同宽。
+///
+/// 连接/断开这类一行两个的按钮用这个，避免主次按钮高度不一致。
+struct GlassActionButton: View {
+
+    let text: String
+    var systemIcon: String? = nil
+    /// 主按钮：品牌色淡淡染色，字更深；次按钮：无色透明玻璃。
+    var prominent: Bool = false
+    var enabled: Bool = true
+    var height: CGFloat = 44
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                if let systemIcon {
+                    Image(systemName: systemIcon)
+                        .font(.system(size: 14, weight: .semibold))
+                }
+                Text(text)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+            }
+            .foregroundStyle(prominent ? Aurora.brandDeep : Aurora.inkSoft)
+            .frame(maxWidth: .infinity)
+            .frame(height: height)
+            .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .auroraGlassSurface(
+                RoundedRectangle(cornerRadius: 14, style: .continuous),
+                tone: prominent ? Aurora.brand : Aurora.inkSoft,
+                tint: prominent ? 0.10 : 0,
+                border: prominent ? 0.20 : 0.16,
+                shadowRadius: 3,
+                shadowY: 1
+            )
+        }
+        .buttonStyle(PressScaleStyle())
+        .disabled(!enabled)
+        .opacity(enabled ? 1 : 0.45)
+    }
+}
+
 /// 危险操作按钮（玫瑰色玻璃）。
 struct DangerTonalButton: View {
 

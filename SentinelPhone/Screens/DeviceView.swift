@@ -265,18 +265,17 @@ struct SettingsDetailView: View {
                 )
 
                 HStack(spacing: 8) {
-                    BrandButton(
+                    GlassActionButton(
                         text: store.mode == .lan && store.isConnected ? "重新连接" : "连接车机",
                         systemIcon: "link",
+                        prominent: true,
                         enabled: !store.isBusy
                     ) {
                         store.connectLAN()
                     }
-                    SmallTonalButton(
+                    GlassActionButton(
                         text: store.mode == .lan && store.isConnected ? "断开" : "扫描",
-                        systemIcon: store.mode == .lan && store.isConnected ? "xmark" : "dot.radiowaves.left.and.right",
-                        expands: true,
-                        height: 44
+                        systemIcon: store.mode == .lan && store.isConnected ? "xmark" : "dot.radiowaves.left.and.right"
                     ) {
                         if store.mode == .lan && store.isConnected {
                             store.disconnect()
@@ -393,18 +392,17 @@ struct SettingsDetailView: View {
                 )
 
                 HStack(spacing: 8) {
-                    BrandButton(
+                    GlassActionButton(
                         text: store.mode == .relay && store.isConnected ? "重新连接" : "连接中继",
                         systemIcon: "antenna.radiowaves.left.and.right",
+                        prominent: true,
                         enabled: !store.isBusy
                     ) {
                         store.connectRelay()
                     }
-                    SmallTonalButton(
+                    GlassActionButton(
                         text: store.mode == .relay && store.isConnected ? "断开" : "获取设备",
-                        systemIcon: store.mode == .relay && store.isConnected ? "xmark" : "arrow.down.circle",
-                        expands: true,
-                        height: 44
+                        systemIcon: store.mode == .relay && store.isConnected ? "xmark" : "arrow.down.circle"
                     ) {
                         if store.mode == .relay && store.isConnected {
                             store.disconnect()
