@@ -602,7 +602,7 @@ final class SentinelStore: ObservableObject {
     var liveFps: Int { localSettings.liveFps ?? 60 }
     var liveWidth: Int { localSettings.liveWidth ?? 640 }
     var liveQuality: Int { localSettings.liveQuality ?? 55 }
-    var recordFps: Int { localSettings.recordFps ?? 2 }
+    var recordFps: Int { localSettings.recordFps ?? 30 }
     var recordWidth: Int { localSettings.recordWidth ?? 640 }
     var recordQuality: Int { localSettings.recordQuality ?? 62 }
     var retentionDays: Int { localSettings.retentionDays ?? 3 }

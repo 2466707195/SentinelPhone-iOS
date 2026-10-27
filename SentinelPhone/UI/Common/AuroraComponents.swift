@@ -315,6 +315,43 @@ struct StatusPill: View {
     }
 }
 
+// MARK: - 呼吸灯
+
+/// 红绿呼吸灯：用来表示连接状态（绿色在线 / 红色离线）。
+struct BreathingDot: View {
+
+    var on: Bool
+    var size: CGFloat = 9
+
+    @State private var pulsing = false
+
+    private var color: Color {
+        on ? Color(hex: 0x34C759) : Color(hex: 0xFF3B30)
+    }
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(color.opacity(0.30))
+                .frame(width: size * 2.2, height: size * 2.2)
+                .scaleEffect(pulsing ? 1 : 0.55)
+                .opacity(pulsing ? 1 : 0.25)
+
+            Circle()
+                .fill(color)
+                .frame(width: size, height: size)
+                .shadow(color: color.opacity(0.55), radius: 3, x: 0, y: 0)
+        }
+        .frame(width: size * 2.2, height: size * 2.2)
+        .onAppear {
+            withAnimation(.easeInOut(duration: 1.3).repeatForever(autoreverses: true)) {
+                pulsing = true
+            }
+        }
+        .accessibilityLabel(on ? "已连接" : "未连接")
+    }
+}
+
 // MARK: - 首字方块
 
 /// 首字圆角方块，代替图标，避免"纯文字工程感"。

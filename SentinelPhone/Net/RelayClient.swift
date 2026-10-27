@@ -24,6 +24,8 @@ final class RelayClient: NSObject, URLSessionWebSocketDelegate {
     private var lastURL: URL?
     private var generation = 0
     private var receiveLoopGeneration = -1
+    private var livePending: [String: Data] = [:]
+    private var liveDecoding: Set<String> = []
 
     var isConnected: Bool {
         task?.state == .running
@@ -124,6 +126,8 @@ final class RelayClient: NSObject, URLSessionWebSocketDelegate {
 
     private func closeSocket() {
         receiveLoopGeneration = -1
+        livePending.removeAll()
+        liveDecoding.removeAll()
         task?.cancel(with: .goingAway, reason: nil)
         task = nil
         session?.invalidateAndCancel()
@@ -250,20 +254,56 @@ final class RelayClient: NSObject, URLSessionWebSocketDelegate {
             return
         }
 
-        guard let image = UIImage(data: payload) else {
+        let kind = header["kind"] as? String ?? ""
+
+        // 直播帧：解码放到后台线程，并且同一机位只解最新一帧，避免积压和主线程卡顿
+        if kind == "frame", id == nil, let channel = header["ch"] as? String {
+            enqueueLiveFrame(channel: channel, payload: payload)
+            return
+        }
+
+        guard let image = Self.preparedImage(payload) else {
             if let id, let continuation = pendingImage.removeValue(forKey: id) {
                 continuation.resume(throwing: SentinelAPIError.decode("画面解码失败"))
             }
             return
         }
 
-        let kind = header["kind"] as? String ?? ""
-        if kind == "frame", let channel = header["ch"] as? String {
-            onFrame?(channel, image)
-        }
         if let id, let continuation = pendingImage.removeValue(forKey: id) {
             continuation.resume(returning: image)
         }
+    }
+
+    // MARK: - 直播帧解码
+
+    /// 每个机位最多同时解码一帧；新帧覆盖旧帧，始终显示最新画面。
+    private func enqueueLiveFrame(channel: String, payload: Data) {
+        livePending[channel] = payload
+        guard !liveDecoding.contains(channel) else { return }
+        liveDecoding.insert(channel)
+        decodeNextLive(channel)
+    }
+
+    private func decodeNextLive(_ channel: String) {
+        guard let payload = livePending.removeValue(forKey: channel) else {
+            liveDecoding.remove(channel)
+            return
+        }
+        Task.detached(priority: .userInitiated) { [weak self] in
+            let image = Self.preparedImage(payload)
+            await MainActor.run { [weak self] in
+                guard let self else { return }
+                if let image { self.onFrame?(channel, image) }
+                self.decodeNextLive(channel)
+            }
+        }
+    }
+
+    /// 后台提前解压成位图，SwiftUI 渲染时不再占用主线程。
+    nonisolated static func preparedImage(_ data: Data) -> UIImage? {
+        guard let image = UIImage(data: data) else { return nil }
+        if let prepared = image.preparingForDisplay() { return prepared }
+        return image
     }
 
     // MARK: - 发送

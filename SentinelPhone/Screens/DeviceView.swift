@@ -25,20 +25,6 @@ enum SettingsRoute: Hashable {
         case .actions: return "快捷操作"
         }
     }
-
-    var subtitle: String {
-        switch self {
-        case .lan: return "同一 Wi-Fi 下自动发现车机"
-        case .relay: return "跨网络时走 WebSocket 中继"
-        case .preview: return "帧率与画面清晰度"
-        case .recording: return "帧率 / 清晰度 / 画质 / 自动录制"
-        case .storage: return "保留天数与清理"
-        case .detection: return "移动侦测与车辆震动"
-        case .deviceInfo: return "型号、网络与运行状态"
-        case .cameras: return "机位与采集状态"
-        case .actions: return "抓拍、重启机位、清理"
-        }
-    }
 }
 
 struct DeviceView: View {
@@ -48,9 +34,12 @@ struct DeviceView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                AppTopBar(title: "设置", subtitle: subtitle) {
-                    TopBarIconButtons(systemIcon: "arrow.clockwise") {
-                        store.refreshNow()
+                AppTopBar(title: "设置") {
+                    HStack(spacing: 10) {
+                        BreathingDot(on: store.isConnected)
+                        TopBarIconButtons(systemIcon: "arrow.clockwise") {
+                            store.refreshNow()
+                        }
                     }
                 }
 
@@ -81,11 +70,6 @@ struct DeviceView: View {
         }
     }
 
-    private var subtitle: String {
-        if store.isDemo { return "未连接 · 请先连接车机" }
-        return "\(store.deviceName) · \(store.connection.title)"
-    }
-
     // MARK: - 分组
 
     private var connectionGroup: some View {
@@ -94,19 +78,17 @@ struct DeviceView: View {
                 SettingsNavigationRow(
                     route: .lan,
                     title: "局域网直连",
-                    subtitle: "同一 Wi-Fi 下自动发现车机",
                     icon: "wifi",
                     tone: Aurora.brand,
-                    value: store.mode == .lan ? store.connection.title : "未使用"
+                    status: store.mode == .lan && store.isConnected
                 )
                 SettingsDivider()
                 SettingsNavigationRow(
                     route: .relay,
                     title: "远程中继",
-                    subtitle: "跨网络时走 WebSocket 中继",
                     icon: "antenna.radiowaves.left.and.right",
                     tone: Aurora.rose,
-                    value: store.mode == .relay ? store.connection.title : "未使用"
+                    status: store.mode == .relay && store.isConnected
                 )
             }
         }
@@ -118,7 +100,6 @@ struct DeviceView: View {
                 SettingsNavigationRow(
                     route: .preview,
                     title: "预览画面",
-                    subtitle: "实时视频帧率与清晰度",
                     icon: "video",
                     tone: Aurora.teal,
                     value: "\(store.liveFps) fps · \(store.liveWidth)px"
@@ -133,7 +114,6 @@ struct DeviceView: View {
                 SettingsNavigationRow(
                     route: .recording,
                     title: "录制",
-                    subtitle: "录制帧率 / 清晰度 / 画质 / 自动录制",
                     icon: "record.circle",
                     tone: Aurora.rose,
                     value: "\(store.recordFps) fps · \(store.recordWidth)px"
@@ -148,7 +128,6 @@ struct DeviceView: View {
                 SettingsNavigationRow(
                     route: .storage,
                     title: "存储",
-                    subtitle: "保留天数与清理",
                     icon: "internaldrive",
                     tone: Aurora.warning,
                     value: "\(store.retentionDays) 天"
@@ -157,10 +136,9 @@ struct DeviceView: View {
                 SettingsNavigationRow(
                     route: .detection,
                     title: "侦测",
-                    subtitle: "移动侦测与车辆震动",
                     icon: "figure.walk.motion",
                     tone: Aurora.brand,
-                    value: store.motionEnabled ? "已开启" : "已关闭"
+                    status: store.motionEnabled
                 )
             }
         }
@@ -172,16 +150,14 @@ struct DeviceView: View {
                 SettingsNavigationRow(
                     route: .deviceInfo,
                     title: "车机信息",
-                    subtitle: "型号、网络与运行状态",
                     icon: "car.fill",
                     tone: Aurora.info,
-                    value: store.isDemo ? "演示" : "在线"
+                    status: store.isConnected
                 )
                 SettingsDivider()
                 SettingsNavigationRow(
                     route: .cameras,
                     title: "摄像头",
-                    subtitle: "机位与采集状态",
                     icon: "video.fill",
                     tone: Aurora.teal,
                     value: "\(store.status?.onlineCount ?? 0)/\(store.status?.totalCount ?? 0)"
@@ -190,10 +166,8 @@ struct DeviceView: View {
                 SettingsNavigationRow(
                     route: .actions,
                     title: "快捷操作",
-                    subtitle: "抓拍、重启机位、清理",
                     icon: "bolt.fill",
-                    tone: Aurora.warning,
-                    value: nil
+                    tone: Aurora.warning
                 )
             }
         }
@@ -210,7 +184,7 @@ struct SettingsDetailView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            AppTopBar(title: route.title, subtitle: route.subtitle)
+            AppTopBar(title: route.title)
 
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 10) {
@@ -240,7 +214,6 @@ struct SettingsDetailView: View {
             VStack(alignment: .leading, spacing: 12) {
                 AuroraSectionHeader(
                     title: "局域网直连",
-                    subtitle: "同一 Wi-Fi 下自动发现车机",
                     systemIcon: "wifi",
                     tone: Aurora.brand,
                     trailingText: store.mode == .lan ? store.connection.title : "未使用"
@@ -338,10 +311,6 @@ struct SettingsDetailView: View {
                             .foregroundStyle(Aurora.muted)
                     }
                 }
-
-                Text("首次连接会弹出「本地网络」权限，请选择允许。")
-                    .font(.system(size: 10.5, weight: .regular))
-                    .foregroundStyle(Aurora.muted)
             }
         }
     }
@@ -353,7 +322,6 @@ struct SettingsDetailView: View {
             VStack(alignment: .leading, spacing: 12) {
                 AuroraSectionHeader(
                     title: "远程中继",
-                    subtitle: "跨网络时走 WebSocket 中继",
                     systemIcon: "antenna.radiowaves.left.and.right",
                     tone: Aurora.rose,
                     trailingText: store.mode == .relay ? store.connection.title : "未使用"
@@ -469,10 +437,6 @@ struct SettingsDetailView: View {
                         }
                     }
                 }
-
-                Text("中继只转发加密 WebSocket 流量；车机端不需要公网 IP。")
-                    .font(.system(size: 10.5, weight: .regular))
-                    .foregroundStyle(Aurora.muted)
             }
         }
     }
@@ -485,7 +449,6 @@ struct SettingsDetailView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     AuroraSectionHeader(
                         title: "预览帧率",
-                        subtitle: "最低 30fps，最高 60fps",
                         systemIcon: "speedometer",
                         tone: Aurora.teal,
                         trailingText: "\(store.liveFps) fps"
@@ -502,7 +465,6 @@ struct SettingsDetailView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     AuroraSectionHeader(
                         title: "画面清晰度",
-                        subtitle: "宽度越大越清晰，带宽和 CPU 越高",
                         systemIcon: "rectangle.compress.vertical",
                         tone: Aurora.brand,
                         trailingText: "\(store.liveWidth) px"
@@ -525,12 +487,11 @@ struct SettingsDetailView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     AuroraSectionHeader(
                         title: "录制帧率",
-                        subtitle: "JPEG 序列抽样帧率",
                         systemIcon: "speedometer",
                         tone: Aurora.rose,
                         trailingText: "\(store.recordFps) fps"
                     )
-                    choiceRow(options: [1, 2, 5, 10], current: store.recordFps) { value in
+                    choiceRow(options: [30, 40, 50, 60], current: store.recordFps) { value in
                         store.updateConfig(["recordFps": value])
                     } label: { value in
                         "\(value) fps"
@@ -542,7 +503,6 @@ struct SettingsDetailView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     AuroraSectionHeader(
                         title: "录制清晰度",
-                        subtitle: "录制画面宽度",
                         systemIcon: "rectangle.compress.vertical",
                         tone: Aurora.teal,
                         trailingText: "\(store.recordWidth) px"
@@ -559,7 +519,6 @@ struct SettingsDetailView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     AuroraSectionHeader(
                         title: "录制画质",
-                        subtitle: "JPEG 压缩质量",
                         systemIcon: "camera.fill",
                         tone: Aurora.brand,
                         trailingText: "\(store.recordQuality)%"
@@ -574,14 +533,9 @@ struct SettingsDetailView: View {
 
             SectionCard {
                 Toggle(isOn: Binding(get: { store.autoRecord }, set: { store.setAutoRecord($0) })) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("自动开始录制")
-                            .font(AuroraFont.labelLarge)
-                            .foregroundStyle(Aurora.ink)
-                        Text("关闭时，打开软件不会自动录制")
-                            .font(AuroraFont.labelSmall)
-                            .foregroundStyle(Aurora.muted)
-                    }
+                    Text("自动开始录制")
+                        .font(AuroraFont.labelLarge)
+                        .foregroundStyle(Aurora.ink)
                 }
             }
         }
@@ -595,7 +549,6 @@ struct SettingsDetailView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     AuroraSectionHeader(
                         title: "存储",
-                        subtitle: "循环覆盖 · 已用 \(store.status?.recordText ?? "—")",
                         systemIcon: "internaldrive.fill",
                         tone: Aurora.warning,
                         trailingText: "\(store.status?.freeText ?? "—") 可用"
@@ -604,11 +557,6 @@ struct SettingsDetailView: View {
                         used: store.status?.storage?.recordBytes ?? 0,
                         total: store.status?.storage?.totalBytes ?? 0
                     )
-                    HStack(spacing: 6) {
-                        TinyTag(text: "保留 \(store.retentionDays) 天", systemIcon: "calendar", tone: Aurora.brand)
-                        TinyTag(text: "\(store.recordFps) fps", systemIcon: "speedometer", tone: Aurora.teal)
-                        TinyTag(text: "\(store.recordWidth) px", systemIcon: "rectangle.compress.vertical", tone: Aurora.rose)
-                    }
                     Divider().background(Aurora.line.opacity(0.6))
                     Text("保留天数")
                         .font(AuroraFont.labelSmall)
@@ -642,14 +590,9 @@ struct SettingsDetailView: View {
         SectionCard {
             VStack(alignment: .leading, spacing: 12) {
                 Toggle(isOn: Binding(get: { store.motionEnabled }, set: { store.updateConfig(["motionEnabled": $0]) })) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("移动侦测")
-                            .font(AuroraFont.labelLarge)
-                            .foregroundStyle(Aurora.ink)
-                        Text("画面变化触发事件与快照")
-                            .font(AuroraFont.labelSmall)
-                            .foregroundStyle(Aurora.muted)
-                    }
+                    Text("移动侦测")
+                        .font(AuroraFont.labelLarge)
+                        .foregroundStyle(Aurora.ink)
                 }
                 
 
@@ -675,14 +618,9 @@ struct SettingsDetailView: View {
                 Divider().background(Aurora.line.opacity(0.6))
 
                 Toggle(isOn: Binding(get: { store.shockEnabled }, set: { store.updateConfig(["shockEnabled": $0]) })) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("车辆震动")
-                            .font(AuroraFont.labelLarge)
-                            .foregroundStyle(Aurora.ink)
-                        Text("加速度计检测碰撞 / 拖车 / 开门震动")
-                            .font(AuroraFont.labelSmall)
-                            .foregroundStyle(Aurora.muted)
-                    }
+                    Text("车辆震动")
+                        .font(AuroraFont.labelLarge)
+                        .foregroundStyle(Aurora.ink)
                 }
             }
         }
@@ -697,7 +635,6 @@ struct SettingsDetailView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     AuroraSectionHeader(
                         title: "车机信息",
-                        subtitle: [status.device?.model, status.device?.version].compactMap { $0 }.joined(separator: " · "),
                         systemIcon: "car.fill",
                         tone: Aurora.teal,
                         trailingText: store.isConnected ? "在线" : "离线"
@@ -738,7 +675,6 @@ struct SettingsDetailView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     AuroraSectionHeader(
                         title: "摄像头",
-                        subtitle: "实时采集与录制状态",
                         systemIcon: "video.fill",
                         tone: Aurora.brand,
                         trailingText: "\(status.onlineCount)/\(status.totalCount) 在线"
@@ -746,18 +682,10 @@ struct SettingsDetailView: View {
                     Divider().background(Aurora.line.opacity(0.6))
                     ForEach(status.channelsOrEmpty) { channel in
                         HStack(spacing: 9) {
-                            Circle()
-                                .fill(channel.isOnline ? Aurora.teal : Aurora.muted)
-                                .frame(width: 7, height: 7)
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text(channel.displayName)
-                                    .font(AuroraFont.labelMedium)
-                                    .foregroundStyle(Aurora.ink)
-                                Text(channel.sourceLabel ?? channel.source ?? "摄像头")
-                                    .font(.system(size: 10, weight: .regular))
-                                    .foregroundStyle(Aurora.muted)
-                                    .lineLimit(1)
-                            }
+                            BreathingDot(on: channel.isOnline, size: 7)
+                            Text(channel.displayName)
+                                .font(AuroraFont.labelMedium)
+                                .foregroundStyle(Aurora.ink)
                             Spacer()
                             VStack(alignment: .trailing, spacing: 1) {
                                 Text(channel.displayResolution)
@@ -788,7 +716,6 @@ struct SettingsDetailView: View {
             VStack(alignment: .leading, spacing: 10) {
                 AuroraSectionHeader(
                     title: "快捷操作",
-                    subtitle: "抓拍、重启机位、清理",
                     systemIcon: "bolt.fill",
                     tone: Aurora.warning
                 )
@@ -893,10 +820,11 @@ struct SettingsDetailView: View {
 struct SettingsNavigationRow: View {
     let route: SettingsRoute
     let title: String
-    var subtitle: String? = nil
     var icon: String
     var tone: Color = Aurora.brand
-    var value: String?
+    var value: String? = nil
+    /// 连接状态呼吸灯：true 绿 / false 红 / nil 不显示
+    var status: Bool? = nil
 
     var body: some View {
         NavigationLink(value: route) {
@@ -909,18 +837,14 @@ struct SettingsNavigationRow: View {
                             .font(.system(size: 14, weight: .semibold))
                             .foregroundStyle(tone)
                     )
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(AuroraFont.titleSmall)
-                        .foregroundStyle(Aurora.ink)
-                    if let subtitle {
-                        Text(subtitle)
-                            .font(.system(size: 10.5, weight: .regular))
-                            .foregroundStyle(Aurora.muted)
-                            .lineLimit(1)
-                    }
-                }
+                Text(title)
+                    .font(AuroraFont.titleSmall)
+                    .foregroundStyle(Aurora.ink)
+                    .lineLimit(1)
                 Spacer(minLength: 6)
+                if let status {
+                    BreathingDot(on: status)
+                }
                 if let value {
                     Text(value)
                         .font(.system(size: 10.5, weight: .medium))
@@ -931,7 +855,7 @@ struct SettingsNavigationRow: View {
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(Aurora.muted)
             }
-            .padding(.vertical, 9)
+            .padding(.vertical, 12)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

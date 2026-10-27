@@ -85,9 +85,11 @@ final class MJPEGStream: NSObject, URLSessionDataDelegate {
             searchStart = end.upperBound
             frames += 1
             if let image = UIImage(data: jpeg) {
+                // 在后台线程提前解压成位图，主线程只负责贴上屏幕
+                let prepared = image.preparingForDisplay() ?? image
                 DispatchQueue.main.async { [weak self] in
                     guard let self, !self.stopped else { return }
-                    self.onFrame(image)
+                    self.onFrame(prepared)
                 }
             }
         }

@@ -32,13 +32,26 @@ struct RecordControlButton: View {
 
     var body: some View {
         Button(action: action) {
-            Label(isRecording ? "停止录制" : "开始录制", systemImage: isRecording ? "stop.fill" : "record.circle")
-                .font(.body.weight(.semibold))
-                .frame(maxWidth: .infinity)
+            HStack(spacing: 7) {
+                Image(systemName: isRecording ? "stop.fill" : "record.circle")
+                    .font(.system(size: 14, weight: .bold))
+                Text(isRecording ? "停止录制" : "开始录制")
+                    .font(.subheadline.weight(.semibold))
+            }
+            .foregroundStyle(isRecording ? Aurora.rose : Aurora.ink)
+            .frame(maxWidth: .infinity)
+            .frame(height: 46)
+            .contentShape(Capsule())
+            .auroraGlassSurface(
+                Capsule(),
+                tone: Aurora.inkSoft,
+                tint: 0,
+                border: 0.18,
+                shadowRadius: 2,
+                shadowY: 1
+            )
         }
-        .buttonStyle(.borderedProminent)
-        .tint(isRecording ? Color.red : Color.green)
-        .controlSize(.large)
+        .buttonStyle(PressScaleStyle())
     }
 }
 
