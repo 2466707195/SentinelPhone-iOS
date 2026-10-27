@@ -60,7 +60,7 @@ struct DeviceView: View {
                         deviceGroup
                     }
                     .padding(.horizontal, AuroraMetrics.pagePadding)
-                    .padding(.top, 2)
+                    .padding(.top, 12)
                     .padding(.bottom, 126)
                 }
             }
@@ -568,17 +568,14 @@ struct SettingsDetailView: View {
                             }
                         }
                     }
-                    Button {
+                    GlassActionButton(
+                        text: "立即清理过期录像",
+                        systemIcon: "trash",
+                        height: 46,
+                        enabled: !store.isBusy
+                    ) {
                         store.control("cleanup")
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: "trash")
-                            Text("立即清理过期录像")
-                        }
-                        .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.green)
                 }
             }
         }
@@ -799,13 +796,13 @@ struct SettingsDetailView: View {
             }
             .frame(maxWidth: .infinity)
             .frame(height: 58)
-            .background(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(tone.tint(0.08))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(tone.opacity(0.12), lineWidth: 1)
+            .auroraGlassSurface(
+                RoundedRectangle(cornerRadius: 14, style: .continuous),
+                tone: Aurora.inkSoft,
+                tint: 0,
+                border: 0.18,
+                shadowRadius: 2,
+                shadowY: 1
             )
             .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
@@ -855,7 +852,7 @@ struct SettingsNavigationRow: View {
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(Aurora.muted)
             }
-            .padding(.vertical, 12)
+            .padding(.vertical, 9)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
