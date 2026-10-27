@@ -23,7 +23,7 @@ on:
 
 defaults:
   run:
-    working-directory: ios
+    working-directory: .
 
 jobs:
   build:
@@ -61,7 +61,7 @@ jobs:
         with:
           name: SentinelPhone-unsigned-ipa
           path: |
-            ios/build/SentinelPhone-unsigned.ipa
-            ios/build/Info.json
+            build/SentinelPhone-unsigned.ipa
+            build/Info.json
           if-no-files-found: error
           retention-days: 30
