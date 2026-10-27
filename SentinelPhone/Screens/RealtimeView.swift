@@ -20,12 +20,9 @@ struct RealtimeView: View {
     var body: some View {
         VStack(spacing: 0) {
             AppTopBar(title: "实时画面", subtitle: subtitle) {
-                TopBarIconButtons(
-                    systemIcon: "arrow.clockwise",
-                    action: { store.refreshNow() },
-                    secondarySystemIcon: "slider.horizontal.3",
-                    secondaryAction: { onOpenDevices() }
-                )
+                TopBarIconButtons(systemIcon: "arrow.clockwise") {
+                    store.refreshNow()
+                }
             }
 
             ScrollView(showsIndicators: false) {

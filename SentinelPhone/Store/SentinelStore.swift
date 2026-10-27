@@ -515,6 +515,85 @@ final class SentinelStore: ObservableObject {
         }
     }
 
+    /// 统一配置更新：预览帧率/清晰度、录制帧率/清晰度/画质等。
+    func updateConfig(_ values: [String: Any]) {
+        guard mode != .demo else {
+            applyLocalConfig(values)
+            return
+        }
+        Task { @MainActor in
+            switch self.mode {
+            case .lan:
+                if let lan = self.lan {
+                    _ = try? await lan.sendControl("update_config", payload: values)
+                    await self.refreshLAN()
+                    await self.refreshLists()
+                }
+            case .relay:
+                self.relay?.sendCommand("update_config", payload: values)
+                try? await Task.sleep(nanoseconds: 500_000_000)
+                await self.refreshRelayStatus()
+            case .demo:
+                break
+            }
+        }
+    }
+
+    private func applyLocalConfig(_ values: [String: Any]) {
+        guard var status else { return }
+        var settings = status.settings ?? SentinelSettingsInfo()
+        if let v = values["liveFps"] as? Int { settings.liveFps = v }
+        if let v = values["liveWidth"] as? Int { settings.liveWidth = v }
+        if let v = values["liveQuality"] as? Int { settings.liveQuality = v }
+        if let v = values["recordFps"] as? Int { settings.recordFps = v }
+        if let v = values["recordWidth"] as? Int { settings.recordWidth = v }
+        if let v = values["recordQuality"] as? Int { settings.recordQuality = v }
+        if let v = values["retentionDays"] as? Int { settings.retentionDays = v }
+        if let v = values["motionEnabled"] as? Bool { settings.motionEnabled = v }
+        if let v = values["motionSensitivity"] as? Double { settings.motionSensitivity = v }
+        if let v = values["shockEnabled"] as? Bool { settings.shockEnabled = v }
+        if let v = values["relayFps"] as? Int { settings.relayFps = v }
+        if let v = values["relayWidth"] as? Int { settings.relayWidth = v }
+        if let v = values["autoRecord"] as? Bool { settings.autoRecord = v; autoRecord = v }
+        status.settings = settings
+        self.status = status
+    }
+
+    /// 导出一段录像为 zip，返回临时文件 URL。
+    func exportSession(_ session: RecordingSession) async -> URL? {
+        guard mode != .demo else { return nil }
+        do {
+            let data: Data
+            if mode == .lan, let lan {
+                data = try await lan.data(path: "/api/v1/sessions/\(session.id)/export.zip")
+            } else if mode == .relay, let relay {
+                data = try await relay.requestData(path: "/api/v1/sessions/\(session.id)/export.zip")
+            } else {
+                return nil
+            }
+            let url = FileManager.default.temporaryDirectory
+                .appendingPathComponent("\(session.id).zip")
+            try data.write(to: url)
+            return url
+        } catch {
+            lastError = "导出失败：\(error.localizedDescription)"
+            return nil
+        }
+    }
+
+    // MARK: - 设置值
+
+    var liveFps: Int { status?.settings?.liveFps ?? 60 }
+    var liveWidth: Int { status?.settings?.liveWidth ?? 640 }
+    var liveQuality: Int { status?.settings?.liveQuality ?? 55 }
+    var recordFps: Int { status?.settings?.recordFps ?? 2 }
+    var recordWidth: Int { status?.settings?.recordWidth ?? 640 }
+    var recordQuality: Int { status?.settings?.recordQuality ?? 62 }
+    var retentionDays: Int { status?.settings?.retentionDays ?? 3 }
+    var motionEnabled: Bool { status?.settings?.motionEnabled ?? true }
+    var shockEnabled: Bool { status?.settings?.shockEnabled ?? true }
+    var motionSensitivity: Double { status?.settings?.motionSensitivity ?? 0.08 }
+
     // MARK: - 图片
 
     func image(path: String?) async -> UIImage? {

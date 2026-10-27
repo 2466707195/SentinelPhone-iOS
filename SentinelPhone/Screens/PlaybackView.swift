@@ -22,6 +22,8 @@ struct PlaybackView: View {
     @State private var range: PlaybackRange = .all
     @State private var selected: RecordingSession?
     @State private var pendingDelete: RecordingSession?
+    @State private var exportURL: URL?
+    @State private var exportingID: String?
 
     private var filtered: [RecordingSession] {
         let sorted = store.sessions.sorted { ($0.startedAt ?? 0) > ($1.startedAt ?? 0) }
@@ -79,6 +81,14 @@ struct PlaybackView: View {
         } message: {
             Text("删除后无法恢复；正在录制的机位不能删除。")
         }
+        .sheet(isPresented: Binding(
+            get: { exportURL != nil },
+            set: { if !$0 { exportURL = nil } }
+        )) {
+            if let exportURL {
+                ShareSheet(items: [exportURL])
+            }
+        }
         .onAppear(perform: openRequestedSession)
         .onChange(of: store.requestedSessionID) { _ in
             openRequestedSession()
@@ -95,6 +105,16 @@ struct PlaybackView: View {
         store.requestedSessionID = nil
         range = .all
         selected = session
+    }
+
+    private func exportSession(_ session: RecordingSession) {
+        guard exportingID == nil else { return }
+        exportingID = session.id
+        Task { @MainActor in
+            let url = await store.exportSession(session)
+            exportingID = nil
+            exportURL = url
+        }
     }
 
     // MARK: - 存储
@@ -195,10 +215,12 @@ struct PlaybackView: View {
         } else {
             VStack(spacing: 8) {
                 ForEach(filtered) { session in
-                    PlaybackSessionRow(session: session) {
+                    PlaybackSessionRow(session: session, exporting: exportingID == session.id) {
                         selected = session
                     } onDelete: {
                         pendingDelete = session
+                    } onExport: {
+                        exportSession(session)
                     }
                 }
             }
@@ -211,8 +233,10 @@ struct PlaybackView: View {
 struct PlaybackSessionRow: View {
 
     let session: RecordingSession
+    var exporting: Bool = false
     let onPlay: () -> Void
     let onDelete: () -> Void
+    let onExport: () -> Void
 
     @EnvironmentObject private var store: SentinelStore
     @State private var thumbnail: UIImage?
@@ -261,6 +285,26 @@ struct PlaybackSessionRow: View {
                 Spacer(minLength: 0)
 
                 if !session.isActive {
+                    Button(action: onExport) {
+                        ZStack {
+                            Circle()
+                                .fill(Aurora.brand.tint(0.12))
+                            if exporting {
+                                ProgressView()
+                                    .controlSize(.mini)
+                            } else {
+                                Image(systemName: "square.and.arrow.up")
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundStyle(Aurora.brand)
+                            }
+                        }
+                        .frame(width: 34, height: 34)
+                        .overlay(Circle().stroke(Aurora.brand.opacity(0.16), lineWidth: 1))
+                    }
+                    .buttonStyle(PressScaleStyle())
+                    .disabled(exporting)
+                    Spacer(minLength: 8)
+
                     Button(action: onDelete) {
                         Image(systemName: "trash")
                             .font(.system(size: 13, weight: .semibold))
@@ -637,4 +681,15 @@ struct PlaybackSheet: View {
     private func share() {
         // 回放目前是只读查看；分享入口保留给后续导出单帧。
     }
+}
+
+
+struct ShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }

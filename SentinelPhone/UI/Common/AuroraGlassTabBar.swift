@@ -13,7 +13,7 @@ enum SentinelTab: String, CaseIterable, Identifiable {
         case .realtime: return "实时画面"
         case .playback: return "回放"
         case .events: return "事件"
-        case .device: return "设备"
+        case .device: return "设置"
         }
     }
 

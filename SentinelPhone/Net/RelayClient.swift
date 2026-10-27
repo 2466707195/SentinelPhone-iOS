@@ -18,6 +18,7 @@ final class RelayClient: NSObject, URLSessionWebSocketDelegate {
     private var task: URLSessionWebSocketTask?
     private var pendingJSON: [String: CheckedContinuation<Data, Error>] = [:]
     private var pendingImage: [String: CheckedContinuation<UIImage, Error>] = [:]
+    private var pendingData: [String: CheckedContinuation<Data, Error>] = [:]
     private var shouldReconnect = false
     private var reconnectTask: Task<Void, Never>?
     private var lastURL: URL?
@@ -65,6 +66,17 @@ final class RelayClient: NSObject, URLSessionWebSocketDelegate {
             pendingImage[id] = continuation
             sendText(["type": "img", "id": id, "path": path])
             scheduleImageTimeout(id)
+        }
+    }
+
+    /// 请求任意二进制数据，例如录像 zip 导出包。
+    func requestData(path: String) async throws -> Data {
+        guard isConnected else { throw SentinelAPIError.offline }
+        let id = UUID().uuidString
+        return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Data, Error>) in
+            pendingData[id] = continuation
+            sendText(["type": "img", "id": id, "path": path])
+            scheduleDataTimeout(id)
         }
     }
 
@@ -204,12 +216,18 @@ final class RelayClient: NSObject, URLSessionWebSocketDelegate {
                 if let continuation = pendingImage.removeValue(forKey: id) {
                     continuation.resume(throwing: SentinelAPIError.empty)
                 }
+                if let continuation = pendingData.removeValue(forKey: id) {
+                    continuation.resume(throwing: SentinelAPIError.empty)
+                }
             } else {
                 let message = object["error"] as? String ?? "中继请求失败"
                 if let continuation = pendingJSON.removeValue(forKey: id) {
                     continuation.resume(throwing: SentinelAPIError.decode(message))
                 }
                 if let continuation = pendingImage.removeValue(forKey: id) {
+                    continuation.resume(throwing: SentinelAPIError.decode(message))
+                }
+                if let continuation = pendingData.removeValue(forKey: id) {
                     continuation.resume(throwing: SentinelAPIError.decode(message))
                 }
             }
@@ -223,9 +241,17 @@ final class RelayClient: NSObject, URLSessionWebSocketDelegate {
         guard headerLength > 0, data.count >= 4 + headerLength else { return }
         let headerData = data.subdata(in: 4..<(4 + headerLength))
         guard let header = try? JSONSerialization.jsonObject(with: headerData) as? [String: Any] else { return }
-        let imageData = data.subdata(in: (4 + headerLength)..<data.count)
-        guard let image = UIImage(data: imageData) else {
-            if let id = header["id"] as? String, let continuation = pendingImage.removeValue(forKey: id) {
+        let payload = data.subdata(in: (4 + headerLength)..<data.count)
+        let id = header["id"] as? String
+
+        // 先处理数据请求（例如录像 zip）：不要求能解码成图片
+        if let id, let continuation = pendingData.removeValue(forKey: id) {
+            continuation.resume(returning: payload)
+            return
+        }
+
+        guard let image = UIImage(data: payload) else {
+            if let id, let continuation = pendingImage.removeValue(forKey: id) {
                 continuation.resume(throwing: SentinelAPIError.decode("画面解码失败"))
             }
             return
@@ -235,7 +261,7 @@ final class RelayClient: NSObject, URLSessionWebSocketDelegate {
         if kind == "frame", let channel = header["ch"] as? String {
             onFrame?(channel, image)
         }
-        if let id = header["id"] as? String, let continuation = pendingImage.removeValue(forKey: id) {
+        if let id, let continuation = pendingImage.removeValue(forKey: id) {
             continuation.resume(returning: image)
         }
     }
@@ -261,6 +287,9 @@ final class RelayClient: NSObject, URLSessionWebSocketDelegate {
         let images = pendingImage
         pendingImage.removeAll()
         images.values.forEach { $0.resume(throwing: error) }
+        let dataRequests = pendingData
+        pendingData.removeAll()
+        dataRequests.values.forEach { $0.resume(throwing: error) }
     }
 
     private func scheduleJSONTimeout(_ id: String) {
@@ -275,6 +304,14 @@ final class RelayClient: NSObject, URLSessionWebSocketDelegate {
         Task { @MainActor [weak self] in
             try? await Task.sleep(nanoseconds: 15_000_000_000)
             guard let self, let continuation = self.pendingImage.removeValue(forKey: id) else { return }
+            continuation.resume(throwing: SentinelAPIError.timeout)
+        }
+    }
+
+    private func scheduleDataTimeout(_ id: String) {
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 30_000_000_000)
+            guard let self, let continuation = self.pendingData.removeValue(forKey: id) else { return }
             continuation.resume(throwing: SentinelAPIError.timeout)
         }
     }

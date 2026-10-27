@@ -76,8 +76,18 @@ struct SentinelNetworkInfo: Codable {
 struct SentinelSettingsInfo: Codable {
     var retentionDays: Int? = nil
     var autoRecord: Bool? = nil
+    var bootStart: Bool? = nil
     var motionEnabled: Bool? = nil
+    var motionSensitivity: Double? = nil
     var shockEnabled: Bool? = nil
+    var liveFps: Int? = nil
+    var liveWidth: Int? = nil
+    var liveQuality: Int? = nil
+    var recordFps: Int? = nil
+    var recordWidth: Int? = nil
+    var recordQuality: Int? = nil
+    var relayFps: Int? = nil
+    var relayWidth: Int? = nil
 }
 
 struct SentinelStatus: Codable {

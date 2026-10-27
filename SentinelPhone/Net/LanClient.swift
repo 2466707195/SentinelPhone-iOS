@@ -98,6 +98,15 @@ final class LanClient {
         return data
     }
 
+    /// 下载录像 zip 等二进制文件。
+    func data(path: String) async throws -> Data {
+        guard let url = endpoint(path) else { throw SentinelAPIError.badURL }
+        let (data, response) = try await session.data(from: url)
+        try Self.validate(response)
+        guard !data.isEmpty else { throw SentinelAPIError.empty }
+        return data
+    }
+
     func image(path: String) async throws -> UIImage {
         let data = try await imageData(path: path)
         guard let image = UIImage(data: data) else { throw SentinelAPIError.decode("图片格式错误") }
