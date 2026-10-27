@@ -115,8 +115,8 @@ struct AuroraGlassTabBar: View {
             }
         } else {
             ZStack(alignment: .leading) {
-                Rectangle()
-                    .fill(AuroraShape.bar)
+                AuroraShape.bar
+                    .fill(Color.clear)
                     .frame(width: width, height: barHeight)
 
                 Capsule(style: .continuous)
