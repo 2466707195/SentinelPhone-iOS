@@ -571,8 +571,8 @@ struct SettingsDetailView: View {
                     GlassActionButton(
                         text: "立即清理过期录像",
                         systemIcon: "trash",
-                        height: 46,
-                        enabled: !store.isBusy
+                        enabled: !store.isBusy,
+                        height: 46
                     ) {
                         store.control("cleanup")
                     }
