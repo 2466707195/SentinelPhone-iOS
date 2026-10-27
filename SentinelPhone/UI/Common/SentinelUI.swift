@@ -11,15 +11,19 @@ struct BrandButton: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 6) {
-                if let systemIcon {
-                    Image(systemName: systemIcon)
-                        .font(.system(size: 14, weight: .semibold))
+            HStack(spacing: 0) {
+                Spacer(minLength: 0)
+                HStack(spacing: 6) {
+                    if let systemIcon {
+                        Image(systemName: systemIcon)
+                            .font(.system(size: 14, weight: .semibold))
+                    }
+                    Text(text)
+                        .font(AuroraFont.labelLarge)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                 }
-                Text(text)
-                    .font(AuroraFont.labelLarge)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+                Spacer(minLength: 0)
             }
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity)
@@ -46,11 +50,15 @@ struct RecordControlButton: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 8) {
-                Image(systemName: isRecording ? "stop.fill" : "record.circle")
-                    .font(.system(size: 13, weight: .bold))
-                Text(isRecording ? "停止录制" : "开始录制")
-                    .font(AuroraFont.labelLarge)
+            HStack(spacing: 0) {
+                Spacer(minLength: 0)
+                HStack(spacing: 8) {
+                    Image(systemName: isRecording ? "stop.fill" : "record.circle")
+                        .font(.system(size: 13, weight: .bold))
+                    Text(isRecording ? "停止录制" : "开始录制")
+                        .font(AuroraFont.labelLarge)
+                }
+                Spacer(minLength: 0)
             }
             .foregroundStyle(isRecording ? Aurora.rose : Color.white)
             .frame(maxWidth: .infinity)

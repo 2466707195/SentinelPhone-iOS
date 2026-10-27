@@ -78,6 +78,7 @@ struct AuroraGlassTabBar: View {
             }
             .frame(width: width, height: barHeight)
             .contentShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+            .onTapGesture { }
             .simultaneousGesture(dragGesture(width: width, itemWidth: itemWidth, capsuleWidth: capsuleWidth))
         }
         .frame(height: barHeight)
