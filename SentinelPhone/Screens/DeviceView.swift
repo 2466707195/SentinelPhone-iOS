@@ -230,6 +230,12 @@ struct SettingsDetailView: View {
                     Spacer()
                 }
 
+                if !store.transportNote.isEmpty {
+                    Text(store.transportNote)
+                        .font(AuroraFont.labelSmall)
+                        .foregroundStyle(Aurora.rose)
+                }
+
                 AuroraTextField(
                     placeholder: "车机地址，例如 192.168.1.23:8720",
                     text: $store.lanAddress,
@@ -336,6 +342,12 @@ struct SettingsDetailView: View {
                             .lineLimit(1)
                     }
                     Spacer()
+                }
+
+                if !store.transportNote.isEmpty {
+                    Text(store.transportNote)
+                        .font(AuroraFont.labelSmall)
+                        .foregroundStyle(Aurora.rose)
                 }
 
                 AuroraTextField(

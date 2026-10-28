@@ -21,6 +21,11 @@ final class SentinelStore: ObservableObject {
     @Published private(set) var relayLoading = false
     @Published private(set) var isBusy = false
     @Published private(set) var lastError: String?
+    /// 最近的换路说明（例如「直连不可用，已切到中继兜底」），给设备页做提示。
+    @Published private(set) var transportNote: String = ""
+
+    /// 直连优先：局域网 / Tailscale 直连失败时自动走中继；中继期间持续探测直连，恢复后自动切回。
+    @Published var autoFallback: Bool = true
 
     // 设备页表单（可编辑）
     @Published var lanAddress: String = ""
@@ -43,6 +48,8 @@ final class SentinelStore: ObservableObject {
     private var demoStart: Double = 0
     private var lanFailures = 0
     private var relayTick = 0
+    /// 中继兜底期间，后台探测直连是否恢复。
+    private var directRecovery: Task<Void, Never>?
 
     /// 直播帧播放缓冲用的一帧。中继链路会把帧成串送到，直接「来一帧显示一帧」
     /// 就是刷三帧再静止几百毫秒，肉眼就是卡顿。这里先存两帧，再按 20Hz 节拍匀速出帧。
@@ -93,6 +100,10 @@ final class SentinelStore: ObservableObject {
         lastError = nil
         startDiscovery()
         startRefreshLoop()
+        // 启动就自动连：直连（局域网 / Tailscale）优先，连不上再走中继兜底
+        if !lanCandidates.isEmpty {
+            connectLAN()
+        }
     }
 
     func refreshNow() {
@@ -154,6 +165,8 @@ final class SentinelStore: ObservableObject {
         discovery.stop()
         refreshTask?.cancel()
         refreshTask = nil
+        directRecovery?.cancel()
+        directRecovery = nil
         connection = .idle
         frames.removeAll()
         frameDates.removeAll()
@@ -196,7 +209,25 @@ final class SentinelStore: ObservableObject {
             for ip in info.ips ?? [] { list.append("\(ip):\(port)") }
         }
         var seen = Set<String>()
-        return list.filter { !$0.isEmpty && seen.insert($0).inserted }
+        let unique = list.filter { !$0.isEmpty && seen.insert($0).inserted }
+        return Self.preferLocalFirst(unique)
+    }
+
+    /// 同优先级里保持原顺序，但把「同一 Wi-Fi 的私网地址」排在 Tailscale 地址前面：
+    /// 两者都能通时走 Wi-Fi，少一层 Tailscale 封装，延迟和 CPU 都更省。
+    nonisolated private static func preferLocalFirst(_ list: [String]) -> [String] {
+        func score(_ raw: String) -> Int {
+            let host = raw.split(separator: ":").first.map(String.init) ?? raw
+            if host.hasPrefix("192.168.") || host.hasPrefix("10.") { return 0 }
+            if host.hasPrefix("100.") { return 1 }
+            return 2
+        }
+        return list.enumerated()
+            .sorted { left, right in
+                let a = score(left.element), b = score(right.element)
+                return a == b ? left.offset < right.offset : a < b
+            }
+            .map { $0.element }
     }
 
     /// 不用管地址是 Wi-Fi 还是 Tailscale：挨个探测，谁能连上就用谁。
@@ -219,11 +250,14 @@ final class SentinelStore: ObservableObject {
         mode = .lan
         connection = .connecting
         lastError = nil
-        discovery.stop()
+        transportNote = ""
+        // 连接期间保持 mDNS 在跑，设备列表才不会空着
+        discovery.start()
 
-        for raw in candidates {
-            guard let client = LanClient(rawAddress: raw),
-                  await LanClient.probe(rawAddress: raw) else { continue }
+        // 并行探测：串行试 6 个地址最坏要 15 秒，并行只要 2.5 秒
+        let reachable = await Self.probeInParallel(candidates)
+        for raw in reachable {
+            guard let client = LanClient(rawAddress: raw) else { continue }
             do {
                 let status = try await client.status()
                 self.lan = client
@@ -232,6 +266,7 @@ final class SentinelStore: ObservableObject {
                 apply(status)
                 connection = .connected
                 lanFailures = 0
+                transportNote = ""
                 startStreams(with: status)
                 startRefreshLoop()
                 await refreshLists()
@@ -240,7 +275,26 @@ final class SentinelStore: ObservableObject {
                 lastError = error.localizedDescription
             }
         }
-        connection = .failed("连不上车机（试过 \(candidates.count) 个地址）")
+        connection = .failed("直连不可用（试过 \(candidates.count) 个地址）")
+        if autoFallback {
+            await fallbackToRelay(reason: "直连不可用")
+        }
+    }
+
+    /// 并行探测所有候选地址，返回「能连上」的地址，顺序仍按候选优先级。
+    nonisolated private static func probeInParallel(_ candidates: [String], timeout: TimeInterval = 2.5) async -> [String] {
+        var reachable = Set<String>()
+        await withTaskGroup(of: (String, Bool).self) { group in
+            for raw in candidates {
+                group.addTask {
+                    (raw, await LanClient.probe(rawAddress: raw, timeout: timeout))
+                }
+            }
+            for await (raw, ok) in group where ok {
+                reachable.insert(raw)
+            }
+        }
+        return candidates.filter { reachable.contains($0) }
     }
 
     private func refreshLAN() async {
@@ -260,6 +314,83 @@ final class SentinelStore: ObservableObject {
                 guard self.lan === lan else { return }
                 self.connection = .failed("车机无响应，请检查同一 Wi-Fi")
                 self.stopStreams()
+                if self.autoFallback {
+                    await self.fallbackToRelay(reason: "直连中断")
+                }
+            }
+        }
+    }
+
+    // MARK: - 兜底与自动切回
+
+    /// 兜底时依次尝试的中继地址：先用用户填的，再退回公网隧道。
+    private static let fallbackRelayURL = "wss://relay.duyufeng.cc.cd"
+
+    private var relayBaseCandidates: [String] {
+        var list: [String] = []
+        let typed = relayURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !typed.isEmpty { list.append(typed) }
+        if !list.contains(Self.fallbackRelayURL) { list.append(Self.fallbackRelayURL) }
+        return list
+    }
+
+    /// 直连不可用时切到中继；连上后后台持续探测直连，恢复就自动切回来。
+    private func fallbackToRelay(reason: String) async {
+        let typedDevice = relayDeviceID.trimmingCharacters(in: .whitespacesAndNewlines)
+        var chosenBase = ""
+        var chosenDevice = ""
+
+        for base in relayBaseCandidates {
+            let list = (try? await RelayDirectory.fetchDevices(base: base, key: relayKey)) ?? []
+            guard !list.isEmpty else { continue }
+            let online = list.filter { $0.isOnline }
+            if !typedDevice.isEmpty, list.contains(where: { $0.id == typedDevice }) {
+                chosenDevice = typedDevice
+            } else if let first = online.first {
+                chosenDevice = first.id
+            } else {
+                continue
+            }
+            relayDevices = list.sorted {
+                if $0.isOnline != $1.isOnline { return $0.isOnline && !$1.isOnline }
+                return $0.id.localizedStandardCompare($1.id) == .orderedAscending
+            }
+            chosenBase = base
+            break
+        }
+
+        guard !chosenBase.isEmpty, !chosenDevice.isEmpty else {
+            connection = .failed("\(reason)，中继上也没有在线车机")
+            return
+        }
+
+        if relayURL != chosenBase { relayURL = chosenBase }
+        if relayDeviceID != chosenDevice { relayDeviceID = chosenDevice }
+        transportNote = "\(reason)，已切到中继兜底"
+        connectRelay(automatic: true)
+    }
+
+    /// 中继兜底期间的后台探测：前 4 轮每 15 秒一次，之后每 60 秒一次。
+    private func startDirectRecovery() {
+        directRecovery?.cancel()
+        directRecovery = Task { @MainActor [weak self] in
+            var round = 0
+            while !Task.isCancelled {
+                let wait: UInt64 = round < 4 ? 15 : 60
+                try? await Task.sleep(nanoseconds: wait * 1_000_000_000)
+                guard let self, !Task.isCancelled else { return }
+                guard self.mode == .relay else { return }
+                round += 1
+
+                let candidates = self.lanCandidates
+                guard !candidates.isEmpty else { continue }
+                let reachable = await Self.probeInParallel(candidates, timeout: 2.0)
+                guard let winner = reachable.first else { continue }
+                guard self.mode == .relay else { return }
+
+                self.transportNote = "直连已恢复，正在切回"
+                self.connectLAN(address: winner)
+                return
             }
         }
     }
@@ -335,7 +466,7 @@ final class SentinelStore: ObservableObject {
         }
     }
 
-    func connectRelay() {
+    func connectRelay(automatic: Bool = false) {
         let base = relayURL.trimmingCharacters(in: .whitespacesAndNewlines)
         let device = relayDeviceID.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !base.isEmpty else {
@@ -351,6 +482,9 @@ final class SentinelStore: ObservableObject {
         mode = .relay
         connection = .connecting
         lastError = nil
+        if automatic {
+            startDirectRecovery()
+        }
 
         let client = RelayClient()
         relay = client
