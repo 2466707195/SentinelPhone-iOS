@@ -29,15 +29,20 @@ targets:
       path: SentinelPhone/Resources/Info.plist
       properties:
         CFBundleDevelopmentRegion: zh-Hans
-        CFBundleDisplayName: 杞﹁浇鍝ㄥ叺
+        CFBundleDisplayName: 车载哨兵
         CFBundleShortVersionString: "1.0.0"
         CFBundleVersion: "20"
         LSRequiresIPhoneOS: true
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: true
-          NSAllowsLocalNetworking: true
           NSExceptionDomains:
             8.160.187.185:
+              NSExceptionAllowsInsecureHTTPLoads: true
+              NSIncludesSubdomains: true
+            100.77.190.58:
+              NSExceptionAllowsInsecureHTTPLoads: true
+              NSIncludesSubdomains: true
+            100.98.157.103:
               NSExceptionAllowsInsecureHTTPLoads: true
               NSIncludesSubdomains: true
         NSBonjourServices:
