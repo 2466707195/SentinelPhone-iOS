@@ -74,6 +74,11 @@ final class SentinelStore: ObservableObject {
     private var streamProfileIndex = 1
     private var lowFpsTicks = 0
     private var highFpsTicks = 0
+
+    /// 中继兜底的候选地址列表 + 当前试到第几个 + 是否是自动兜底（手动连接不自动换地址）。
+    private var relayCandidates: [String] = []
+    private var relayCandidateIndex = 0
+    private var relayAutoMode = false
     private var started = false
 
     /// 最近连通过的车机地址（局域网 IP、Tailscale IP 混在一起），连接时按顺序挨个探测。
@@ -194,6 +199,8 @@ final class SentinelStore: ObservableObject {
 
     func disconnect() {
         let current = mode
+        relayAutoMode = false
+        relayCandidates = []
         stopNetwork()
         mode = current
         connection = .idle
@@ -341,50 +348,70 @@ final class SentinelStore: ObservableObject {
     // MARK: - 兜底与自动切回
 
     /// 兜底时依次尝试的中继地址：先用用户填的，再退回公网隧道。
-    private static let fallbackRelayURL = "wss://relay.duyufeng.cc.cd"
+    /// 公网隧道优先 wss，但国内到 Cloudflare 的 TLS 握手经常要 2~18 秒，
+    /// iOS 会直接报 "TLS 错误导致安全连接失败"，所以最后再退一档明文 ws（80 端口，实测通畅）。
+    private static let publicRelayTLS = "wss://relay.duyufeng.cc.cd"
+    private static let publicRelayPlain = "ws://relay.duyufeng.cc.cd"
 
     private var relayBaseCandidates: [String] {
         var list: [String] = []
         let typed = relayURL.trimmingCharacters(in: .whitespacesAndNewlines)
         if !typed.isEmpty { list.append(typed) }
-        if !list.contains(Self.fallbackRelayURL) { list.append(Self.fallbackRelayURL) }
+        for base in [Self.publicRelayTLS, Self.publicRelayPlain] where !list.contains(base) {
+            list.append(base)
+        }
         return list
     }
 
     /// 直连不可用时切到中继；连上后后台持续探测直连，恢复就自动切回来。
     private func fallbackToRelay(reason: String) async {
+        let bases = relayBaseCandidates
         let typedDevice = relayDeviceID.trimmingCharacters(in: .whitespacesAndNewlines)
-        var chosenBase = ""
-        var chosenDevice = ""
+        var chosenIndex = 0
+        var chosenDevice = typedDevice
 
-        for base in relayBaseCandidates {
-            let list = (try? await RelayDirectory.fetchDevices(base: base, key: relayKey)) ?? []
-            guard !list.isEmpty else { continue }
-            let online = list.filter { $0.isOnline }
-            if !typedDevice.isEmpty, list.contains(where: { $0.id == typedDevice }) {
-                chosenDevice = typedDevice
-            } else if let first = online.first {
-                chosenDevice = first.id
-            } else {
-                continue
+        for (index, base) in bases.enumerated() {
+            guard let list = try? await RelayDirectory.fetchDevices(base: base, key: relayKey),
+                  !list.isEmpty else { continue }
+            chosenIndex = index
+            if chosenDevice.isEmpty || !list.contains(where: { $0.id == chosenDevice }) {
+                chosenDevice = (list.first(where: { $0.isOnline }) ?? list[0]).id
             }
             relayDevices = list.sorted {
                 if $0.isOnline != $1.isOnline { return $0.isOnline && !$1.isOnline }
                 return $0.id.localizedStandardCompare($1.id) == .orderedAscending
             }
-            chosenBase = base
             break
         }
 
-        guard !chosenBase.isEmpty, !chosenDevice.isEmpty else {
+        guard !chosenDevice.isEmpty else {
             connection = .failed("\(reason)，中继上也没有在线车机")
             return
         }
 
-        if relayURL != chosenBase { relayURL = chosenBase }
+        relayCandidates = bases
+        relayCandidateIndex = chosenIndex
+        if relayURL != bases[chosenIndex] { relayURL = bases[chosenIndex] }
         if relayDeviceID != chosenDevice { relayDeviceID = chosenDevice }
         transportNote = "\(reason)，已切到中继兜底"
         connectRelay(automatic: true)
+    }
+
+    /// 某个中继地址连不上（典型是国内到 Cloudflare 的 TLS 握手超时）就换下一个。
+    private func advanceRelayCandidate(reason: String) {
+        guard relayAutoMode, mode == .relay else { return }
+        guard relayCandidateIndex + 1 < relayCandidates.count else { return }
+        relayCandidateIndex += 1
+        let next = relayCandidates[relayCandidateIndex]
+        relayURL = next
+        transportNote = next.hasPrefix("ws://")
+            ? "TLS 握手不通，改用明文 ws 兜底"
+            : "换一个中继地址重试"
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            guard let self, self.mode == .relay else { return }
+            self.connectRelay(automatic: true)
+        }
     }
 
     /// 中继兜底期间的后台探测：前 4 轮每 15 秒一次，之后每 60 秒一次。
@@ -498,6 +525,7 @@ final class SentinelStore: ObservableObject {
         mode = .relay
         connection = .connecting
         lastError = nil
+        relayAutoMode = automatic
         if automatic {
             startDirectRecovery()
         }
@@ -514,6 +542,7 @@ final class SentinelStore: ObservableObject {
                     await self.refreshLists()
                 } else if let message, !message.isEmpty, !message.contains("正在") {
                     self.connection = .failed(message)
+                    self.advanceRelayCandidate(reason: message)
                 } else {
                     self.connection = .idle
                 }

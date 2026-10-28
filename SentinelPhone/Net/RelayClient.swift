@@ -115,7 +115,8 @@ final class RelayClient: NSObject, URLSessionWebSocketDelegate {
         generation += 1
         let current = generation
         let configuration = URLSessionConfiguration.default
-        configuration.timeoutIntervalForRequest = 15
+        // 国内到 Cloudflare 的 TLS 握手经常要 2~18 秒，15 秒会直接判成 TLS 错误
+        configuration.timeoutIntervalForRequest = 30
         configuration.waitsForConnectivity = false
         let session = URLSession(configuration: configuration, delegate: self, delegateQueue: .main)
         self.session = session
