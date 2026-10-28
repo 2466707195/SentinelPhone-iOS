@@ -65,6 +65,15 @@ final class SentinelStore: ObservableObject {
     private var rxBaseline: [String: Int] = [:]
     private var rxBaselineAt = Date()
     @Published private(set) var rxFps: [String: Double] = [:]
+
+    /// 直播画质档位：链路慢就往下掉，稳定了再慢慢升回去。
+    /// 只影响手机看直播，不影响车机录像（录像用 record* 配置）。
+    private static let streamProfiles: [(width: Int, fps: Int)] = [
+        (640, 25), (480, 20), (360, 12), (320, 8)
+    ]
+    private var streamProfileIndex = 1
+    private var lowFpsTicks = 0
+    private var highFpsTicks = 0
     private var started = false
 
     /// 最近连通过的车机地址（局域网 IP、Tailscale IP 混在一起），连接时按顺序挨个探测。
@@ -406,9 +415,10 @@ final class SentinelStore: ObservableObject {
     private func startStreams(with status: SentinelStatus) {
         guard let lan else { return }
         stopStreams()
+        let profile = Self.streamProfiles[streamProfileIndex]
         for channel in status.channelsOrEmpty {
             guard channel.isOnline, channel.enabled != false,
-                  let url = lan.streamURL(channelID: channel.id) else { continue }
+                  let url = lan.streamURL(channelID: channel.id, maxWidth: profile.width, maxFPS: profile.fps) else { continue }
             let channelID = channel.id
             let stream = MJPEGStream(
                 url: url,
@@ -595,6 +605,46 @@ final class SentinelStore: ObservableObject {
         rxBaseline = rxCounts
         rxBaselineAt = now
         rxFps = result
+        adaptStreamProfile()
+    }
+
+    /// 按实测接收帧率调整直播画质档位。
+    private func adaptStreamProfile() {
+        guard mode == .lan, !streams.isEmpty else { return }
+        let target = Double(Self.streamProfiles[streamProfileIndex].fps)
+        let values = Array(rxFps.values).filter { $0 > 0 }
+        guard !values.isEmpty else { return }
+        let avg = values.reduce(0, +) / Double(values.count)
+
+        if avg < target * 0.6 {
+            lowFpsTicks += 1
+            highFpsTicks = 0
+        } else if avg > target * 0.9 {
+            highFpsTicks += 1
+            lowFpsTicks = 0
+        } else {
+            lowFpsTicks = 0
+            highFpsTicks = 0
+        }
+
+        if lowFpsTicks >= 3, streamProfileIndex < Self.streamProfiles.count - 1 {
+            streamProfileIndex += 1
+            lowFpsTicks = 0
+            let p = Self.streamProfiles[streamProfileIndex]
+            transportNote = "链路偏慢，直播降到 \(p.width)宽 / \(p.fps)fps"
+            restartStreams()
+        } else if highFpsTicks >= 15, streamProfileIndex > 0 {
+            streamProfileIndex -= 1
+            highFpsTicks = 0
+            restartStreams()
+        }
+    }
+
+    private func restartStreams() {
+        guard mode == .lan, let status else { return }
+        rxCounts.removeAll()
+        rxBaseline.removeAll()
+        startStreams(with: status)
     }
 
     private func refreshRelayStatus() async {

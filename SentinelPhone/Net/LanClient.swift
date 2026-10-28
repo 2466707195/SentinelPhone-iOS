@@ -56,8 +56,13 @@ final class LanClient {
         return nil
     }
 
-    func streamURL(channelID: String) -> URL? {
-        endpoint("/api/v1/stream/\(channelID).mjpeg")
+    func streamURL(channelID: String, maxWidth: Int = 0, maxFPS: Int = 0) -> URL? {
+        var path = "/api/v1/stream/\(channelID).mjpeg"
+        var params: [String] = []
+        if maxWidth > 0 { params.append("w=\(maxWidth)") }
+        if maxFPS > 0 { params.append("fps=\(maxFPS)") }
+        if !params.isEmpty { path += "?" + params.joined(separator: "&") }
+        return endpoint(path)
     }
 
     func snapshotURL(channelID: String) -> URL? {
