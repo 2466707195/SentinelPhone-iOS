@@ -24,7 +24,7 @@ final class SentinelStore: ObservableObject {
 
     // 设备页表单（可编辑）
     @Published var lanAddress: String = ""
-    @Published var relayURL: String = "wss://relay.duyufeng.cc.cd"
+    @Published var relayURL: String = "ws://8.160.187.185:8722"
     @Published var relayKey: String = "NhiRFzlTf5RcWDXh7rnypJK0GefI"
     @Published var relayDeviceID: String = ""
     @Published var autoRecord: Bool = false
