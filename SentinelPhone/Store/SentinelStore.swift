@@ -43,6 +43,16 @@ final class SentinelStore: ObservableObject {
     private var demoStart: Double = 0
     private var lanFailures = 0
     private var relayTick = 0
+
+    /// 直播帧播放缓冲用的一帧。中继链路会把帧成串送到，直接「来一帧显示一帧」
+    /// 就是刷三帧再静止几百毫秒，肉眼就是卡顿。这里先存两帧，再按 20Hz 节拍匀速出帧。
+    private struct BufferedFrame {
+        let image: UIImage
+        let at: Date
+    }
+
+    private var frameBuffer: [String: [BufferedFrame]] = [:]
+    private var presenter: Task<Void, Never>?
     private var started = false
     private var imageCache: [String: UIImage] = [:]
     private var imageOrder: [String] = []
@@ -131,6 +141,7 @@ final class SentinelStore: ObservableObject {
         stopStreams()
         relay?.disconnect()
         relay = nil
+        stopPresenter()
         discovery.stop()
         refreshTask?.cancel()
         refreshTask = nil
@@ -328,9 +339,7 @@ final class SentinelStore: ObservableObject {
         client.onFrame = { [weak self] channel, image in
             Task { @MainActor in
                 guard let self, self.relay === client else { return }
-                self.frames[channel] = image
-                self.frameDates[channel] = Date()
-                self.channelErrors.removeValue(forKey: channel)
+                self.enqueueLiveFrame(channel: channel, image: image)
             }
         }
 
@@ -338,6 +347,55 @@ final class SentinelStore: ObservableObject {
             try client.connect(base: base, key: relayKey, deviceID: device)
         } catch {
             connection = .failed(error.localizedDescription)
+        }
+    }
+
+    // MARK: - 直播帧平滑播放
+
+    /// 收到新帧先入缓冲。只留最近 6 帧，保证延迟不会越攒越高。
+    private func enqueueLiveFrame(channel: String, image: UIImage) {
+        var buffer = frameBuffer[channel] ?? []
+        buffer.append(BufferedFrame(image: image, at: Date()))
+        if buffer.count > 6 {
+            buffer.removeFirst(buffer.count - 6)
+        }
+        frameBuffer[channel] = buffer
+        startPresenter()
+    }
+
+    private func startPresenter() {
+        guard presenter == nil else { return }
+        presenter = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 50_000_000)
+                guard let self else { return }
+                self.presentLiveFrames()
+            }
+        }
+    }
+
+    private func stopPresenter() {
+        presenter?.cancel()
+        presenter = nil
+        frameBuffer.removeAll()
+    }
+
+    /// 每 50ms 放出一帧：
+    /// - 缓冲里攒到 2 帧以上，就匀速播放（最多 20fps），帧间隔稳定，肉眼顺滑；
+    /// - 只剩 1 帧且已经等了 180ms，就直接放，避免链路慢时画面僵住。
+    private func presentLiveFrames() {
+        guard !frameBuffer.isEmpty else { return }
+        let now = Date()
+        for (channel, buffer) in frameBuffer {
+            guard let first = buffer.first else { continue }
+            let ready = buffer.count >= 2 || now.timeIntervalSince(first.at) > 0.18
+            guard ready else { continue }
+            var rest = buffer
+            rest.removeFirst()
+            frameBuffer[channel] = rest
+            frames[channel] = first.image
+            frameDates[channel] = now
+            channelErrors.removeValue(forKey: channel)
         }
     }
 
