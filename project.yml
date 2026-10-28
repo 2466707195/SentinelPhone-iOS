@@ -31,7 +31,7 @@ targets:
         CFBundleDevelopmentRegion: zh-Hans
         CFBundleDisplayName: 车载哨兵
         CFBundleShortVersionString: "1.0.0"
-        CFBundleVersion: "19"
+        CFBundleVersion: "20"
         LSRequiresIPhoneOS: true
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: true
@@ -42,8 +42,7 @@ targets:
               NSIncludesSubdomains: true
         NSBonjourServices:
           - _carsentinel._tcp
-        NSLocalNetworkUsageDescription: 需要访问局域网，才能自动发现车机、实时接收监控画面和录像。
-        UIApplicationSupportsIndirectInputEvents: true
+        NSLocalNetworkUsageDescription: 需要访问局域网，才能自动发现车机、实时接收监控画面和录像�?        UIApplicationSupportsIndirectInputEvents: true
         UILaunchScreen: {}
         UIRequiredDeviceCapabilities:
           - arm64
@@ -62,7 +61,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.aurora.sentinelphone
         PRODUCT_NAME: SentinelPhone
         MARKETING_VERSION: "1.0.0"
-        CURRENT_PROJECT_VERSION: "19"
+        CURRENT_PROJECT_VERSION: "20"
         GENERATE_INFOPLIST_FILE: NO
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
