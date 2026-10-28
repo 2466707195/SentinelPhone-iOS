@@ -29,7 +29,7 @@ final class SentinelStore: ObservableObject {
 
     // 设备页表单（可编辑）
     @Published var lanAddress: String = ""
-    @Published var relayURL: String = "ws://100.77.190.58:8722"
+    @Published var relayURL: String = "wss://relay.duyufeng.cc.cd"
     @Published var relayKey: String = "NhiRFzlTf5RcWDXh7rnypJK0GefI"
     @Published var relayDeviceID: String = ""
     @Published var autoRecord: Bool = false
@@ -60,6 +60,11 @@ final class SentinelStore: ObservableObject {
 
     private var frameBuffer: [String: [BufferedFrame]] = [:]
     private var presenter: Task<Void, Never>?
+    /// 接收帧率诊断：每秒统计一次，用来区分「网络没给到帧」和「渲染跟不上」。
+    private var rxCounts: [String: Int] = [:]
+    private var rxBaseline: [String: Int] = [:]
+    private var rxBaselineAt = Date()
+    @Published private(set) var rxFps: [String: Double] = [:]
     private var started = false
 
     /// 最近连通过的车机地址（局域网 IP、Tailscale IP 混在一起），连接时按顺序挨个探测。
@@ -171,6 +176,9 @@ final class SentinelStore: ObservableObject {
         frames.removeAll()
         frameDates.removeAll()
         channelErrors.removeAll()
+        rxCounts.removeAll()
+        rxBaseline.removeAll()
+        rxFps = [:]
         imageCache.removeAll()
         imageOrder.removeAll()
     }
@@ -407,10 +415,8 @@ final class SentinelStore: ObservableObject {
                 channelID: channelID,
                 onFrame: { [weak self] image in
                     Task { @MainActor in
-                        guard let self else { return }
-                        self.frames[channelID] = image
-                        self.frameDates[channelID] = Date()
-                        self.channelErrors.removeValue(forKey: channelID)
+                        // 走统一的 30fps 出帧节拍，避免整屏 SwiftUI 每秒被刷 90 次
+                        self?.enqueueLiveFrame(channel: channelID, image: image)
                     }
                 },
                 onError: { [weak self] message in
@@ -526,14 +532,17 @@ final class SentinelStore: ObservableObject {
 
     // MARK: - 直播帧平滑播放
 
-    /// 收到新帧先入缓冲。只留最近 6 帧，保证延迟不会越攒越高。
+    /// 收到新帧先入缓冲。只留最近 3 帧，保证延迟不会越攒越高。
+    /// 直连（局域网 / Tailscale）和空中继走同一条路：最多 30fps 出帧，
+    /// 不再让每一帧都直接打一次 @Published（3 路 30fps 就是 90 次/秒的整屏重绘，必卡）。
     private func enqueueLiveFrame(channel: String, image: UIImage) {
         var buffer = frameBuffer[channel] ?? []
         buffer.append(BufferedFrame(image: image, at: Date()))
-        if buffer.count > 6 {
-            buffer.removeFirst(buffer.count - 6)
+        if buffer.count > 3 {
+            buffer.removeFirst(buffer.count - 3)
         }
         frameBuffer[channel] = buffer
+        rxCounts[channel, default: 0] += 1
         startPresenter()
     }
 
@@ -541,7 +550,7 @@ final class SentinelStore: ObservableObject {
         guard presenter == nil else { return }
         presenter = Task { @MainActor [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 50_000_000)
+                try? await Task.sleep(nanoseconds: 33_000_000)
                 guard let self else { return }
                 self.presentLiveFrames()
             }
@@ -554,15 +563,15 @@ final class SentinelStore: ObservableObject {
         frameBuffer.removeAll()
     }
 
-    /// 每 50ms 放出一帧：
-    /// - 缓冲里攒到 2 帧以上，就匀速播放（最多 20fps），帧间隔稳定，肉眼顺滑；
-    /// - 只剩 1 帧且已经等了 180ms，就直接放，避免链路慢时画面僵住。
+    /// 每 33ms 放出一帧：
+    /// - 缓冲里攒到 2 帧以上，就匀速播放（最多 30fps），帧间隔稳定，肉眼顺滑；
+    /// - 只剩 1 帧且已经等了 150ms，就直接放，避免链路慢时画面僵住。
     private func presentLiveFrames() {
         guard !frameBuffer.isEmpty else { return }
         let now = Date()
         for (channel, buffer) in frameBuffer {
             guard let first = buffer.first else { continue }
-            let ready = buffer.count >= 2 || now.timeIntervalSince(first.at) > 0.18
+            let ready = buffer.count >= 2 || now.timeIntervalSince(first.at) > 0.15
             guard ready else { continue }
             var rest = buffer
             rest.removeFirst()
@@ -571,6 +580,21 @@ final class SentinelStore: ObservableObject {
             frameDates[channel] = now
             channelErrors.removeValue(forKey: channel)
         }
+    }
+
+    /// 每 2 秒算一次各路「实际收到的帧率」。这就是判断卡在哪一层的分界线：
+    /// 接收帧率正常但画面卡 = 渲染问题；接收帧率上不去 = 网络/解码问题。
+    private func updateRxFps() {
+        let now = Date()
+        let seconds = max(now.timeIntervalSince(rxBaselineAt), 0.5)
+        var result: [String: Double] = [:]
+        for (channel, count) in rxCounts {
+            let delta = count - (rxBaseline[channel] ?? 0)
+            result[channel] = Double(delta) / seconds
+        }
+        rxBaseline = rxCounts
+        rxBaselineAt = now
+        rxFps = result
     }
 
     private func refreshRelayStatus() async {
@@ -619,6 +643,7 @@ final class SentinelStore: ObservableObject {
                     continue
                 }
                 guard self.connection.isConnected else { continue }
+                self.updateRxFps()
                 if self.mode == .lan {
                     await self.refreshLAN()
                 } else if self.mode == .relay {

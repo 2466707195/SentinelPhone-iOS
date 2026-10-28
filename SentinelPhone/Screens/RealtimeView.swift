@@ -88,6 +88,12 @@ struct RealtimeView: View {
                     store.toggleRecording()
                 }
                 .disabled(store.isBusy)
+
+                if !rxLine.isEmpty {
+                    Text(rxLine)
+                        .font(.system(size: 10.5, weight: .medium, design: .monospaced))
+                        .foregroundStyle(Aurora.muted)
+                }
             }
         }
     }
@@ -262,6 +268,15 @@ struct RealtimeView: View {
         case .failed: return Aurora.rose
         case .idle: return Aurora.muted
         }
+    }
+
+    private var rxLine: String {
+        let pairs = (store.status?.channels ?? []).compactMap { channel -> String? in
+            guard let fps = store.rxFps[channel.id] else { return nil }
+            return "\(channel.displayShort) \(String(format: "%.0f", fps))"
+        }
+        guard !pairs.isEmpty else { return "" }
+        return "接收帧率 " + pairs.joined(separator: " · ") + " fps"
     }
 
     private var durationText: String {

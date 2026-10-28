@@ -24,6 +24,9 @@ final class RelayClient: NSObject, URLSessionWebSocketDelegate {
     private var lastURL: URL?
     private var generation = 0
     private var receiveLoopGeneration = -1
+    /// 应用层心跳：iOS 不会回 WebSocket pong，必须自己定期发消息，否则会被中继当死连接踢掉。
+    private var keepaliveTask: Task<Void, Never>?
+    private var openedGeneration = -1
     private var livePending: [String: Data] = [:]
     private var liveDecoding: Set<String> = []
 
@@ -126,6 +129,7 @@ final class RelayClient: NSObject, URLSessionWebSocketDelegate {
 
     private func closeSocket() {
         receiveLoopGeneration = -1
+        stopKeepalive()
         livePending.removeAll()
         liveDecoding.removeAll()
         task?.cancel(with: .goingAway, reason: nil)
@@ -152,9 +156,34 @@ final class RelayClient: NSObject, URLSessionWebSocketDelegate {
     }
 
     private func handleOpen() {
-        onState?(true, nil)
+        markConnectedOnce()
         sendText(["type": "hello", "role": "viewer"])
         refreshStatus()
+        startKeepalive()
+    }
+
+    /// 连接被确认（握手回调或收到第一条消息）时只上报一次「已连接」。
+    private func markConnectedOnce() {
+        guard openedGeneration != generation else { return }
+        openedGeneration = generation
+        onState?(true, nil)
+    }
+
+    private func startKeepalive() {
+        stopKeepalive()
+        keepaliveTask = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 15_000_000_000)
+                guard let self, !Task.isCancelled else { return }
+                guard self.isConnected else { return }
+                self.sendText(["type": "ping"])
+            }
+        }
+    }
+
+    private func stopKeepalive() {
+        keepaliveTask?.cancel()
+        keepaliveTask = nil
     }
 
     private func handleFailure(_ error: Error) {
@@ -190,6 +219,7 @@ final class RelayClient: NSObject, URLSessionWebSocketDelegate {
     }
 
     private func handleText(_ text: String) {
+        markConnectedOnce()
         guard let data = text.data(using: .utf8),
               let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
         let type = object["type"] as? String ?? ""
@@ -239,6 +269,7 @@ final class RelayClient: NSObject, URLSessionWebSocketDelegate {
     }
 
     private func handleBinary(_ data: Data) {
+        markConnectedOnce()
         guard data.count > 4 else { return }
         let prefix = [UInt8](data.prefix(4))
         let headerLength = (Int(prefix[0]) << 24) | (Int(prefix[1]) << 16) | (Int(prefix[2]) << 8) | Int(prefix[3])
