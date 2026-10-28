@@ -30,6 +30,25 @@ final class LanClient {
         return url
     }
 
+    /// 快速探测一个地址能不能连通（用来在多个候选地址里挑一个能用的）。
+    static func probe(rawAddress: String, timeout: TimeInterval = 2.5) async -> Bool {
+        guard let base = normalize(rawAddress) else { return false }
+        let url = base.appendingPathComponent("api/v1/status")
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.timeoutIntervalForRequest = timeout
+        configuration.timeoutIntervalForResource = timeout + 1
+        configuration.waitsForConnectivity = false
+        let session = URLSession(configuration: configuration)
+        defer { session.invalidateAndCancel() }
+        do {
+            let (_, response) = try await session.data(from: url)
+            guard let http = response as? HTTPURLResponse else { return false }
+            return (200..<300).contains(http.statusCode)
+        } catch {
+            return false
+        }
+    }
+
     func endpoint(_ path: String) -> URL? {
         if let url = URL(string: path, relativeTo: baseURL) {
             return url.absoluteURL

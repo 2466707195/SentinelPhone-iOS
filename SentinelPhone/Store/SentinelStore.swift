@@ -54,6 +54,10 @@ final class SentinelStore: ObservableObject {
     private var frameBuffer: [String: [BufferedFrame]] = [:]
     private var presenter: Task<Void, Never>?
     private var started = false
+
+    /// 最近连通过的车机地址（局域网 IP、Tailscale IP 混在一起），连接时按顺序挨个探测。
+    private static let knownLANKey = "sentinel.lan.known"
+    private var knownLANAddresses: [String] = []
     private var imageCache: [String: UIImage] = [:]
     private var imageOrder: [String] = []
 
@@ -62,6 +66,11 @@ final class SentinelStore: ObservableObject {
         status = DemoData.status(startedAt: demoStart)
         sessions = DemoData.sessions()
         events = DemoData.events()
+        knownLANAddresses = UserDefaults.standard.stringArray(forKey: Self.knownLANKey) ?? []
+        if knownLANAddresses.isEmpty {
+            // 车机的 Tailscale 地址：出门用 4G 也能直连，不用中继
+            knownLANAddresses = ["100.98.157.103:8720"]
+        }
         discovery.onChange = { [weak self] devices in
             Task { @MainActor in
                 self?.discoveries = devices
@@ -167,40 +176,71 @@ final class SentinelStore: ObservableObject {
 
     // MARK: - 局域网
 
+    /// 记住连通过的地址（局域网 IP、Tailscale IP 都会记），下次按「最近成功优先」挨个试。
+    private func rememberLAN(_ address: String) {
+        var list = knownLANAddresses.filter { $0 != address }
+        list.insert(address, at: 0)
+        knownLANAddresses = Array(list.prefix(6))
+        UserDefaults.standard.set(knownLANAddresses, forKey: Self.knownLANKey)
+    }
+
+    /// 候选地址：手填的 → 最近连通过的 → 局域网发现的 → 车机上报的所有 IP（含 Tailscale）。
+    private var lanCandidates: [String] {
+        var list: [String] = []
+        let typed = lanAddress.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !typed.isEmpty { list.append(typed) }
+        list.append(contentsOf: knownLANAddresses)
+        for device in discoveries { list.append(device.urlText) }
+        if let info = status?.network {
+            let port = info.port ?? 8720
+            for ip in info.ips ?? [] { list.append("\(ip):\(port)") }
+        }
+        var seen = Set<String>()
+        return list.filter { !$0.isEmpty && seen.insert($0).inserted }
+    }
+
+    /// 不用管地址是 Wi-Fi 还是 Tailscale：挨个探测，谁能连上就用谁。
     func connectLAN(address: String? = nil) {
-        let raw = (address ?? lanAddress).trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !raw.isEmpty else {
+        if let address, !address.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            lanAddress = address.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        let candidates = lanCandidates
+        guard !candidates.isEmpty else {
             connection = .failed("请先填写车机 IP，或从下面的设备里选一个")
             return
         }
-        guard let client = LanClient(rawAddress: raw) else {
-            connection = .failed("地址格式不正确")
-            return
+        Task { @MainActor in
+            await self.connectFirstReachable(candidates)
         }
+    }
+
+    private func connectFirstReachable(_ candidates: [String]) async {
         stopNetwork()
         mode = .lan
-        lanAddress = raw
-        lan = client
         connection = .connecting
         lastError = nil
         discovery.stop()
 
-        Task { @MainActor in
+        for raw in candidates {
+            guard let client = LanClient(rawAddress: raw),
+                  await LanClient.probe(rawAddress: raw) else { continue }
             do {
                 let status = try await client.status()
-                guard self.lan === client else { return }
-                self.apply(status)
-                self.connection = .connected
-                self.lanFailures = 0
-                self.startStreams(with: status)
-                self.startRefreshLoop()
-                await self.refreshLists()
+                self.lan = client
+                self.lanAddress = raw
+                rememberLAN(raw)
+                apply(status)
+                connection = .connected
+                lanFailures = 0
+                startStreams(with: status)
+                startRefreshLoop()
+                await refreshLists()
+                return
             } catch {
-                guard self.lan === client else { return }
-                self.connection = .failed(error.localizedDescription)
-                self.lastError = error.localizedDescription
+                lastError = error.localizedDescription
             }
         }
+        connection = .failed("连不上车机（试过 \(candidates.count) 个地址）")
     }
 
     private func refreshLAN() async {
@@ -467,6 +507,13 @@ final class SentinelStore: ObservableObject {
         }
         if lanAddress.isEmpty, let url = status.device?.lanUrl, !url.isEmpty {
             lanAddress = url.replacingOccurrences(of: "http://", with: "")
+        }
+        // 顺带记住车机上报的所有地址（含 Tailscale 100.x）：
+        // 哪怕现在是中继连的，下次切局域网也能直接挑一个能连上的。
+        if let info = status.network, let port = info.port {
+            for ip in info.ips ?? [] where !knownLANAddresses.contains("\(ip):\(port)") {
+                rememberLAN("\(ip):\(port)")
+            }
         }
     }
 

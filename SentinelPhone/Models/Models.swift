@@ -71,6 +71,8 @@ struct SentinelNetworkInfo: Codable {
     var ip: String? = nil
     var port: Int? = nil
     var lanUrl: String? = nil
+    /// 车机所有可直连的本机 IPv4（含 Tailscale 100.x），手机端会挨个探测。
+    var ips: [String]? = nil
 }
 
 struct SentinelSettingsInfo: Codable {
