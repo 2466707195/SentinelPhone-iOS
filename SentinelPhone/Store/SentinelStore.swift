@@ -277,7 +277,7 @@ final class SentinelStore: ObservableObject {
         }
         connection = .failed("直连不可用（试过 \(candidates.count) 个地址）")
         if autoFallback {
-            await fallbackToRelay(reason: "直连不可用")
+            await fallbackToRelay(reason: "直连不可用（检查 Wi-Fi / Tailscale）")
         }
     }
 
