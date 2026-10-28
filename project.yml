@@ -29,7 +29,7 @@ targets:
       path: SentinelPhone/Resources/Info.plist
       properties:
         CFBundleDevelopmentRegion: zh-Hans
-        CFBundleDisplayName: 车载哨兵
+        CFBundleDisplayName: 杞﹁浇鍝ㄥ叺
         CFBundleShortVersionString: "1.0.0"
         CFBundleVersion: "20"
         LSRequiresIPhoneOS: true
@@ -42,7 +42,7 @@ targets:
               NSIncludesSubdomains: true
         NSBonjourServices:
           - _carsentinel._tcp
-        NSLocalNetworkUsageDescription: 需要访问局域网，才能自动发现车机、实时接收监控画面和录像�?        UIApplicationSupportsIndirectInputEvents: true
+        NSLocalNetworkUsageDescription: 闇€瑕佽闂眬鍩熺綉锛屾墠鑳借嚜鍔ㄥ彂鐜拌溅鏈恒€佸疄鏃舵帴鏀剁洃鎺х敾闈㈠拰褰曞儚銆?        UIApplicationSupportsIndirectInputEvents: true
         UILaunchScreen: {}
         UIRequiredDeviceCapabilities:
           - arm64
